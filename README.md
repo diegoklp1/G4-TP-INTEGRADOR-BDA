@@ -1,1 +1,9 @@
 # TP-INTEGRADOR-BDA
+
+LLANOS DIEGO : diegklp1
+
+LLANOS FRANCO : francoll12  
+
+VARELA DANIEL : danvare1
+
+RIOS CHRISTIAN : Christti87
