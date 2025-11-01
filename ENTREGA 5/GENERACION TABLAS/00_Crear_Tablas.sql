@@ -15,7 +15,7 @@ GO
 -- Creo la base
 IF DB_ID('COM5600_G04') IS NULL
 BEGIN
-    CREATE DATABASE COM5600_G04 COLLATE Latin1_General_CI_AS;
+    CREATE DATABASE COM5600_G04 --COLLATE Latin1_General_CI_AS;
 	    PRINT 'Base de datos COM5600_G04 Creada.';
 END	
 GO
@@ -39,6 +39,8 @@ BEGIN
 		Telefono varchar(20),
 		Email varchar(100),
 		Cuenta_Deposito varchar(22),
+		Precio_Cochera_Default decimal(9,2),
+		Precio_Baulera_Default decimal(9,2)
 	);
 END
 
@@ -46,7 +48,7 @@ IF OBJECT_ID('Consorcio') IS NULL
 BEGIN
 	CREATE TABLE Consorcio 
 	(
-		Id_Consorcio int IDENTITY(1,1) PRIMARY KEY,
+		Id_Consorcio int PRIMARY KEY,
 		Id_Administracion int,
 		Nombre varchar(100),
 		Domicilio varchar(100),
@@ -63,8 +65,8 @@ BEGIN
 	CREATE TABLE Proovedor
 		(
 			Id_Proovedor int IDENTITY(1,1) PRIMARY KEY,
-			Nombre_Gasto varchar(30),
-			Descripcion varchar(50),
+			Nombre_Gasto varchar(60),
+			Descripcion varchar(80),
 			Cuenta varchar(30),
 			Id_Consorcio int,
 			CONSTRAINT FK_Proovedores_Consorcio FOREIGN KEY (Id_Consorcio) REFERENCES Consorcio(Id_Consorcio),
@@ -242,8 +244,8 @@ IF OBJECT_ID('Unidad_Funcional') IS NULL
 BEGIN
 	CREATE TABLE Unidad_Funcional
 	(
-		NroUF varchar(10),
 		Id_Consorcio int,
+		NroUF varchar(10),
 		Piso varchar(5),
 		Departamento varchar(5),
 		Coeficiente decimal(5,2),
@@ -401,3 +403,4 @@ BEGIN
 	Dias_Desde_Vencimiento int,
 	);
 END
+
