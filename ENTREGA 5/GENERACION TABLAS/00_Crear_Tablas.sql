@@ -1,4 +1,4 @@
------------------- CREACIÓN DE BBDD -------------------
+------------------ CREACIÃ“N DE BBDD -------------------
 
 -- Cambiar al contexto master
 USE master;
@@ -24,7 +24,7 @@ GO
 USE COM5600_G04;
 GO
 
------------------- CREACIÓN DE TABLAS -------------------
+------------------ CREACIÃ“N DE TABLAS -------------------
 -- Cree las entidades y relaciones. Incluya restricciones y claves --
 
 ------------- Consorcio ----------
@@ -60,7 +60,7 @@ END
 
 IF OBJECT_ID('Proovedores') IS NULL
 BEGIN
-	CREATE TABLE Proovedores 
+	CREATE TABLE Proovedor
 		(
 			Id_Proovedor int IDENTITY(1,1) PRIMARY KEY,
 			Nombre_Gasto varchar(30),
@@ -242,7 +242,7 @@ IF OBJECT_ID('Unidad_Funcional') IS NULL
 BEGIN
 	CREATE TABLE Unidad_Funcional
 	(
-		NroUF int IDENTITY(1,1) PRIMARY KEY,
+		NroUF varchar(10),
 		Id_Consorcio int,
 		Piso varchar(5),
 		Departamento varchar(5),
@@ -252,6 +252,7 @@ BEGIN
 		Cochera bit,
 		M2_Baulera tinyint,
 		M2_Cochera tinyint,
+		CONSTRAINT PK_UnidadFuncional PRIMARY KEY (Id_Consorcio, NroUf),
 		CONSTRAINT FK_Unidad_Funcional_Consorcio FOREIGN KEY (Id_Consorcio) REFERENCES Consorcio(Id_Consorcio),
 	);
 END
@@ -277,6 +278,8 @@ BEGIN
 		Apellido varchar(80),
 		Email varchar(100),
 		Telefono varchar(20),
+		inquilino bit,
+		Cbu_Cvu varchar(22) NOT NULL
 	);
 END
 
@@ -286,15 +289,15 @@ BEGIN
 	CREATE TABLE Unidad_Persona
 	(
 		ID_U_P int IDENTITY(1,1) PRIMARY KEY,
-		Id_Personas int,
-		NroUF int,
+		Id_Consorcio int NOT NULL,
+		NroUF varchar(10),
+		Id_Persona int,
 		Id_TipoRelacion int,
-		Fecha_Inicio datetime,
-		Fecha_Fin datetime NULL,
-		CbuCvu varchar(22) NOT NULL,
+		Fecha_Inicio date,
+		Fecha_Fin date NULL,
 		CONSTRAINT FK_Unidad_Persona_TipoRelacionPersonaUnidad FOREIGN KEY (Id_TipoRelacion) REFERENCES TipoRelacionPersonaUnidad(ID_Tipo_Relacion_P_U),
-		CONSTRAINT FK_Unidad_Persona_Unidad_Funcional FOREIGN KEY (NroUF) REFERENCES Unidad_Funcional(NroUF),
-		CONSTRAINT FK_Unidad_Persona_Persona FOREIGN KEY (Id_Personas) REFERENCES Persona(Id_Persona),
+		CONSTRAINT FK_Unidad_Persona_Unidad_Funcional FOREIGN KEY (Id_Consorcio,NroUF) REFERENCES Unidad_Funcional(Id_consorcio,NroUF),
+		CONSTRAINT FK_Unidad_Persona_Persona FOREIGN KEY (Id_Persona) REFERENCES Persona(Id_Persona),
 	);
 END
 
@@ -323,7 +326,8 @@ BEGIN
 	(
 		Id_Detalle_Expensa int IDENTITY(1,1) PRIMARY KEY,
 		Id_Expensa int,
-		NroUf int,
+		Id_Consorcio int,
+		NroUf varchar(10),
 		Saldo_Anterior decimal(9,2),
 		Pagos_Recibidos_Mes decimal(9,2),
 		Deuda decimal(9,2),
@@ -332,7 +336,7 @@ BEGIN
 		Importe_Extraordinario_Prorrateado decimal(9,2),
 		Total_A_Pagar decimal(9,2),
 		CONSTRAINT FK_Detalle_Expensa_UF_Liquidacion_Mensual FOREIGN KEY (Id_Expensa) REFERENCES Liquidacion_Mensual(Id_Liquidacion_Mensual),
-		CONSTRAINT FK_Detalle_Expensa_UF_Unidad_Funcional FOREIGN KEY (NroUf) REFERENCES Unidad_Funcional(NroUf),
+		CONSTRAINT FK_Detalle_Expensa_UF_Unidad_Funcional FOREIGN KEY (id_Consorcio,NroUF) REFERENCES Unidad_Funcional(id_Consorcio,NroUf),
 	);
 END
 
@@ -353,11 +357,11 @@ BEGIN
 	(
 		Id_Pago int IDENTITY(1,1) PRIMARY KEY,
 		Id_Forma_De_Pago int,
-		Fecha datetime,
+		Fecha date,
 		Cuenta_Origen varchar(22) NOT NULL,
 		Importe decimal(9,2),
 		Es_Pago_Asociado bit,
-		CONSTRAINT FK_Pago__Forma_De_Pago FOREIGN KEY (Id_Forma_De_Pago) REFERENCES Forma_De_Pago(Id_Forma_De_Pago),
+		CONSTRAINT FK_Pago_Forma_De_Pago FOREIGN KEY (Id_Forma_De_Pago) REFERENCES Forma_De_Pago(Id_Forma_De_Pago),
 	);
 END
 
@@ -397,4 +401,3 @@ BEGIN
 	Dias_Desde_Vencimiento int,
 	);
 END
-
