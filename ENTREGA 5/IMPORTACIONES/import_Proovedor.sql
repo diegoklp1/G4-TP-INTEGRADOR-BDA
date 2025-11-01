@@ -1,6 +1,7 @@
+use master
 USE bd_tp_testeo
 GO
-
+/*
 CREATE TABLE Consorcio (
     Id INT PRIMARY KEY,
     Id_Adm INT,
@@ -26,7 +27,7 @@ CREATE TABLE Proovedor (
     REFERENCES Consorcio(Id)
 );
 GO
-
+*/
 USE bd_tp_testeo
 GO
 IF OBJECT_ID('sp_Importar_Proveedores', 'P') IS NOT NULL
@@ -41,8 +42,8 @@ BEGIN
 	-- TABLA TEMPORAL CON LA MISMA ESTRUCTURA DEL CSV
     CREATE TABLE #TempProveedores (
 		col_vacia VARCHAR(10),
-        Tipo_gasto VARCHAR(40), 
-        Nombre VARCHAR(60),     
+        Tipo_gasto VARCHAR(60), 
+        Nombre VARCHAR(80),     
         Cuenta VARCHAR(50),    
         NomConsorcio VARCHAR(200) 
     );
@@ -69,7 +70,7 @@ BEGIN
         WHERE NomConsorcio IS NULL OR Tipo_gasto IS NULL  OR LTRIM(RTRIM(NomConsorcio)) = '';
 
         UPDATE T 
-        SET T.Id_Consorcio = C.Id 
+        SET T.Id_Consorcio = C.Id_Consorcio 
         FROM #TempProveedores AS T 
 		JOIN Consorcio AS C ON UPPER(LTRIM(RTRIM(T.NomConsorcio))) = C.Nombre;
         
@@ -92,13 +93,12 @@ BEGIN
             FROM #TempProveedores
             WHERE Id_Consorcio IS NOT NULL -- Solo si encontramos el consorcio
               AND Nombre IS NOT NULL 
-              AND LTRIM(RTRIM(Nombre)) <> ''
         ) AS S -- S = Source (Origen)
-        ON (T.Id_Consorcio = S.Id_Consorcio AND T.Nombre = S.Nombre)
+        ON (T.Id_Consorcio = S.Id_Consorcio AND T.Nombre_gasto = S.Nombre)
 
         -- Si no existe (mismo nombre + mismo consorcio), lo crea
         WHEN NOT MATCHED BY TARGET THEN
-            INSERT (Id_Consorcio, Nombre, Descripcion, Cuenta)
+            INSERT (Id_Consorcio, Nombre_gasto, Descripcion, Cuenta)
             VALUES (S.Id_Consorcio, S.Nombre, S.Tipo_gasto, S.Cuenta)
 
         -- Si ya existe, actualiza sus datos 
@@ -116,7 +116,7 @@ BEGIN
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH
-
+	 
     DROP TABLE #TempProveedores;
     SET NOCOUNT OFF;
 END
@@ -124,7 +124,7 @@ GO
 
 
 EXEC sp_Importar_Proveedores
-    @RutaArchivoCSV = 'D:\Diego\Downloads\Archivos para el TP\datos proovedores.csv';
+    @RutaArchivoCSV = 'D:\Diego\Downloads\ARCHIVOS_TP_BDA\datos proovedores.csv';
 GO
 
 SELECT * FROM Consorcio;

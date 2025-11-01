@@ -1,3 +1,4 @@
+use master
 USE bd_tp_testeo
 CREATE TABLE Persona (
     DNI VARCHAR(11) PRIMARY KEY,
@@ -57,7 +58,7 @@ BEGIN
 			Nombre_CSV = UPPER(LTRIM(RTRIM(Nombre_CSV))),
             Apellido_CSV = UPPER(LTRIM(RTRIM(Apellido_CSV))),
             DNI_Limpio = LTRIM(RTRIM(DNI_CSV)),
-            Email_CSV = LOWER(LTRIM(RTRIM(Email_CSV))),
+            Email_CSV = LOWER(REPLACE(Email_CSV,' ','')),
             Telefono_CSV = LTRIM(RTRIM(Telefono_CSV)),
             CBU_CSV = LTRIM(RTRIM(CBU_CSV));
 
