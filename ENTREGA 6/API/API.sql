@@ -1,9 +1,11 @@
---FALTA - CONTINUAR
 --Seteo la fecha con uno para los lunes
 SET DATEFIRST 1; -- Lunes = 1
 
+---Tomo la fecha de hoy o selecciona alguna fecha en especifico
+--Utilizo la fecha de hoy
 DECLARE @fecha DATE = GETDATE();
--- DECLARE @fecha DATE = '2025-11-01';
+--Utilizo una fecha cargada a mano
+--DECLARE @fecha DATE = '2025-12-05';
 
 DECLARE @año INT = YEAR(@fecha);
 
@@ -66,6 +68,6 @@ SELECT
     END AS EstadoDia,
     CONVERT(VARCHAR(10), (SELECT QuintoDiaHabil FROM QuintoDia), 23) AS QuintoDiaHabilDelMes,
     CASE
-      WHEN @fecha = (SELECT QuintoDiaHabil FROM QuintoDia) THEN 'SI'
-      ELSE 'NO'
+      WHEN @fecha = (SELECT QuintoDiaHabil FROM QuintoDia) THEN 'Emitir Comprobantes'
+      ELSE 'NO Emitir Comprobante'
     END AS EsHoyElQuintoDiaHabil;
