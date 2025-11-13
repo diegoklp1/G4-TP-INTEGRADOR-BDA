@@ -1,3 +1,20 @@
+-- =========================================================
+-- SCRIPT: API.sql
+-- PROPÓSITO: Implementación de API Feriados para busqueda
+-- de quinto día habil del mes para la generación de 
+-- comprobantes.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 --Seteo la fecha con uno para los lunes
 SET DATEFIRST 1; -- Lunes = 1
 
