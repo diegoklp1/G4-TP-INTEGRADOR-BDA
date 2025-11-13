@@ -1,3 +1,20 @@
+-- =========================================================
+-- SCRIPT: Reportes2.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte donde se vea el total de recaudación por mes 
+-- y departamento en formato de tabla cruzada.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 2
 ---Presente el total de recaudación por mes y departamento en formato de tabla cruzada.
 USE COM5600_G04;

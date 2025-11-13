@@ -1,3 +1,21 @@
+-- =========================================================
+-- SCRIPT: Reportes6.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte que uestre las fechas de pagos de expensas 
+-- ordinarias de cada UF y la cantidad de días que pasan 
+-- entre un pago y el siguiente, para el conjunto examinado.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 6
 --Muestre las fechas de pagos de expensas ordinarias de cada UF y la cantidad de días que
 --pasan entre un pago y el siguiente, para el conjunto examinado.

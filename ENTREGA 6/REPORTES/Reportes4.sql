@@ -1,3 +1,21 @@
+-- =========================================================
+-- SCRIPT: Reportes4.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte para obtener los 5 (cinco) meses de mayores 
+-- gastos y los 5 (cinco) de mayores ingresos.
+-- Implementamos el formato del reporte en XML.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 4
 --Obtenga los 5 (cinco) meses de mayores gastos y los 5 (cinco) de mayores ingresos.
 USE COM5600_G04;

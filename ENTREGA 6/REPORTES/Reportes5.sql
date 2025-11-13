@@ -1,3 +1,23 @@
+-- =========================================================
+-- SCRIPT: Reportes5.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte para obtener los 3 (tres) propietarios con 
+-- mayor morosidad. 
+-- Presente información de contacto y DNI de los propietarios 
+-- para que la administración los pueda contactar o remitir 
+-- el trámite al estudio jurídico.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 5
 --Obtenga los 3 (tres) propietarios con mayor morosidad. Presente información de contacto y
 --DNI de los propietarios para que la administración los pueda contactar o remitir el trámite al

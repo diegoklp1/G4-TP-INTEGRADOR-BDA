@@ -1,3 +1,19 @@
+-- =========================================================
+-- SCRIPT: Ejecucion.sql
+-- PROPÓSITO: Ejecutar los stored procedures para obtener los
+-- 6 reportes. Se pueden ejecutar todos a la vez o de a uno.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Script de Ejecución
 USE COM5600_G04;
 GO

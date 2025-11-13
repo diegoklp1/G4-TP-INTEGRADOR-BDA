@@ -1,3 +1,20 @@
+-- =========================================================
+-- SCRIPT: Reportes3.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte con la recaudación total desagregada según 
+-- su procedencia.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 3
 --Presente un cuadro cruzado con la recaudación total desagregada según su procedencia
 --(ordinario, extraordinario, etc.) según el periodo.

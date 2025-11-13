@@ -1,3 +1,21 @@
+-- =========================================================
+-- SCRIPT: Reportes.sql
+-- PROPÓSITO: Generación del Store Procedure para generación
+-- del reporte para analizar el flujo de caja en forma 
+-- semanal.
+-- Implementación de formato XML.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+
 ---Reporte 1
 --Se desea analizar el flujo de caja en forma semanal. Debe presentar la recaudación por
 --pagos ordinarios y extraordinarios de cada semana, el promedio en el periodo, y el
