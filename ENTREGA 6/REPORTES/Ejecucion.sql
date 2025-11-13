@@ -1,43 +1,81 @@
 ---Script de Ejecución
---Reporte1
-EXEC sp_ReporteRecaudacionSemanal
-    @FechaInicio = '2025-01-01',
-    @FechaFin = '2025-12-31',
-    @IdConsorcio = 1;
+USE COM5600_G04;
+GO
+
+--Reporte 1 - Recaudacion Semanal
+BEGIN TRY
+    EXEC dbo.sp_ReporteRecaudacionSemanal
+        @FechaInicio = '2025-01-01',
+        @FechaFin = '2025-12-31',
+        @IdConsorcio = 1;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 1: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---
 
---Reporte2
-EXEC sp_reporte_recaudacion_mensual_departamento
-    @FechaInicio = '2025-01-01',
-    @FechaFin = '2025-12-31',
-    @IdConsorcio = 1;
+--Reporte 2 - Recaudacion Mensual Departamento
+BEGIN TRY
+	EXEC dbo.sp_ReporteRecaudacionMensualDepartamento
+		@FechaInicio = '2025-01-01',
+		@FechaFin = '2025-12-31',
+		@IdConsorcio = 1;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 2: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---
 
 --Reporte3
-EXEC sp_reporte_recaudacion_por_tipo
-    @FechaInicio = '2025-01-01',
-    @FechaFin = '2025-12-31',
-    @IdConsorcio = 1;
+BEGIN TRY
+	EXEC dbo.sp_ReporteRecaudacionPorTipo
+		@FechaInicio = '2025-01-01',
+		@FechaFin = '2025-12-31',
+		@IdConsorcio = 1;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 3: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---
 
---Reporte4
-EXEC sp_top_meses_ingresos_gastos 
-    @IdConsorcio = 1, 
-    @IdTipoGasto = NULL,  -- o un ID específico
-    @Anio = 2025;
-
+--Reporte 4 - Top Meses Ingresos Gastos
+BEGIN TRY
+	EXEC dbo.sp_ReporteTopMesesIngresosGastos 
+		@IdConsorcio = 1, 
+		@IdTipoGasto = NULL,  -- o un ID específico
+		@Anio = 2025;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 4: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---
 
---Reporte5
-EXEC sp_Top3MorososPorConsorcioPisoAnio 
-     @Id_Consorcio = 1,
-     @Piso = '2',
-     @Anio = 2024;
+--Reporte 5 - Top 3 Morosos
+BEGIN TRY
+	EXEC dbo.sp_ReporteTop3MorososPorConsorcioPisoAnio 
+		 @Id_Consorcio = 1,
+		 @Piso = '2',
+		 @Anio = 2024;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 5: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---
 
---Reporte6
-EXEC sp_intervalo_pagos_ordinarios
-    @FechaInicio = '2025-01-01',
-    @FechaFin = '2025-12-31',
-    @IdConsorcio = 1;
+--Reporte 6 - Intervalo Pagos Ordinarios
+BEGIN TRY
+	EXEC dbo.sp_ReporteIntervaloPagosOrdinarios
+		@FechaInicio = '2025-01-01',
+		@FechaFin = '2025-12-31',
+		@IdConsorcio = 1;
+END TRY
+BEGIN CATCH
+    PRINT 'Error en Reporte 6: ' + ERROR_MESSAGE();
+END CATCH;
+GO
 ---

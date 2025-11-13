@@ -1,6 +1,9 @@
 ---Reporte 2
 ---Presente el total de recaudación por mes y departamento en formato de tabla cruzada.
-CREATE OR ALTER PROCEDURE sp_reporte_recaudacion_mensual_departamento
+USE COM5600_G04;
+GO
+
+CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionMensualDepartamento
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT

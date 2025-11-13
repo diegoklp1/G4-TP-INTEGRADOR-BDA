@@ -1,8 +1,10 @@
 ---Reporte 3
 --Presente un cuadro cruzado con la recaudación total desagregada según su procedencia
 --(ordinario, extraordinario, etc.) según el periodo.
+USE COM5600_G04;
+GO
 
-CREATE OR ALTER PROCEDURE sp_reporte_recaudacion_por_tipo
+CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionPorTipo
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT

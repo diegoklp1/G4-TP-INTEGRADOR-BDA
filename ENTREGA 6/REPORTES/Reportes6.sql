@@ -1,7 +1,10 @@
 ---Reporte 6
 --Muestre las fechas de pagos de expensas ordinarias de cada UF y la cantidad de días que
 --pasan entre un pago y el siguiente, para el conjunto examinado.
-CREATE OR ALTER PROCEDURE sp_intervalo_pagos_ordinarios
+USE COM5600_G04;
+GO
+
+CREATE OR ALTER PROCEDURE sp_ReporteIntervaloPagosOrdinarios
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT

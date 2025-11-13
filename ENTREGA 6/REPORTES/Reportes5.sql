@@ -2,7 +2,10 @@
 --Obtenga los 3 (tres) propietarios con mayor morosidad. Presente información de contacto y
 --DNI de los propietarios para que la administración los pueda contactar o remitir el trámite al
 --estudio jurídico.
-CREATE OR ALTER PROCEDURE sp_Top3MorososPorConsorcioPisoAnio
+USE COM5600_G04;
+GO
+
+CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
     @Id_Consorcio INT,
     @Piso VARCHAR(5),
     @Anio INT
