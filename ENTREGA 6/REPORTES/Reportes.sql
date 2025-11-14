@@ -99,7 +99,7 @@ GO
 USE COM5600_G04;
 GO
 
-CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionMensualDepartamento
+/*CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionMensualDepartamento
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
@@ -132,6 +132,66 @@ BEGIN
                         [2025-06], [2025-07], [2025-08], [2025-09], [2025-10], [2025-11], [2025-12])
     ) AS TablaCruzada
     ORDER BY Departamento;
+END;
+GO*/
+CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionMensualDepartamento
+    @FechaInicio DATE,
+    @FechaFin DATE,
+    @IdConsorcio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+	
+    ---------------------------------------------------------------------
+    -- 1. Preparar recaudación base
+    ---------------------------------------------------------------------
+    ;WITH Recaudacion AS (
+        SELECT 
+            uf.Departamento,
+            FORMAT(p.Fecha, 'yyyy-MM') AS Periodo,
+            SUM(dp.Importe_Usado) AS Total_Recaudado
+        FROM Pago p
+        INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
+        INNER JOIN Detalle_Expensa_UF dexp ON dexp.Id_Detalle_Expensa = dp.Id_Detalle_Expensa
+        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF
+        WHERE 
+            p.Fecha BETWEEN @FechaInicio AND @FechaFin
+            AND dexp.Id_Consorcio = @IdConsorcio
+        GROUP BY uf.Departamento, FORMAT(p.Fecha, 'yyyy-MM')
+    )
+    SELECT * INTO #Recaudacion FROM Recaudacion;
+
+    ---------------------------------------------------------------------
+    -- 2. Obtener lista dinámica de meses en formato [yyyy-MM]
+    ---------------------------------------------------------------------
+    DECLARE @cols NVARCHAR(MAX);
+
+    SELECT @cols = STRING_AGG(QUOTENAME(Periodo), ',')
+    FROM (
+        SELECT DISTINCT Periodo FROM #Recaudacion
+    ) AS x;
+
+    ---------------------------------------------------------------------
+    -- 3. Construir SQL dinámico del PIVOT
+    ---------------------------------------------------------------------
+    DECLARE @sql NVARCHAR(MAX) = '
+        SELECT Departamento, ' + @cols + '
+        FROM (
+            SELECT Departamento, Periodo, Total_Recaudado
+            FROM #Recaudacion
+        ) AS src
+        PIVOT (
+            SUM(Total_Recaudado)
+            FOR Periodo IN (' + @cols + ')
+        ) AS pvt
+        ORDER BY Departamento;
+    ';
+
+    ---------------------------------------------------------------------
+    -- 4. Ejecutar PIVOT dinámico
+    ---------------------------------------------------------------------
+    EXEC sp_executesql @sql;
+
 END;
 GO
 
