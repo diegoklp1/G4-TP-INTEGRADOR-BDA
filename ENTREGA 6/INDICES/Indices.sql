@@ -22,32 +22,31 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Pago')
 BEGIN
 	CREATE NONCLUSTERED INDEX IX_Pago
-	ON Pago (Id_Pago)
-	INCLUDE (Fecha);
+	ON Pago (Fecha)
 END;
 
 --Detalle Pago
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Detalle_Pago')
 BEGIN
 	CREATE NONCLUSTERED INDEX IX_Detalle_Pago
-	ON Detalle_Pago (Id_Detalle_Pago)
-	INCLUDE (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado);
+	ON Detalle_Pago (Id_Pago,Id_Detalle_Expensa)
+	INCLUDE (Id_Tipo_Ingreso, Importe_Usado);
 END;
 
 --Detalle Expensa UF
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Detalle_Expensa_UF')
 BEGIN
 	CREATE NONCLUSTERED INDEX IX_Detalle_Expensa_UF
-	ON Detalle_Expensa_UF (Id_Detalle_Expensa)
-	INCLUDE (Id_Expensa, Id_Consorcio, NroUF, Importe_Ordinario_Prorrateado, Importe_Extraordinario_Prorrateado);
+	ON Detalle_Expensa_UF (Id_Consorcio,NroUF)
+	INCLUDE (Id_Expensa, NroUF, Importe_Ordinario_Prorrateado, Importe_Extraordinario_Prorrateado);
 END;
 
 --Liquidacion Mensual
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Liquidacion_Mensual')
 BEGIN
 	CREATE NONCLUSTERED INDEX IX_Liquidacion_Mensual
-	ON Liquidacion_Mensual (Id_Liquidacion_Mensual)
-	INCLUDE (Id_Consorcio, Fecha_Vencimiento1, Periodo);
+	ON Liquidacion_Mensual (Id_Consorcio,Periodo)
+	INCLUDE (Fecha_Vencimiento1, Periodo);
 END;
 
 --Unidad Funcional
