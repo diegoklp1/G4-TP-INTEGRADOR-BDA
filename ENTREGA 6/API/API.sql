@@ -1,8 +1,7 @@
 -- =========================================================
 -- SCRIPT: API.sql
 -- PROPOSITO: Implementacion de API Feriados para busqueda
--- de quinto dia habil del mes para la generacion de 
--- comprobantes.
+-- de dias habiles o no habiles.
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
@@ -15,76 +14,44 @@
 
 -- =========================================================
 
---Seteo la fecha con uno para los lunes
-SET DATEFIRST 1; -- Lunes = 1
+CREATE OR ALTER PROCEDURE dbo.EsDiaNoHabil
+    @fecha DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET DATEFIRST 1; -- Lunes = 1
 
----Tomo la fecha de hoy o selecciona alguna fecha en especifico
---Utilizo la fecha de hoy
-DECLARE @fecha DATE = GETDATE();
---Utilizo una fecha cargada a mano
---DECLARE @fecha DATE = '2025-12-05';
+    DECLARE @anio INT = YEAR(@fecha);
 
-DECLARE @anio INT = YEAR(@fecha);
+    -- 1. Llamar API de feriados
+    DECLARE @URL NVARCHAR(500) = 
+        'https://api.argentinadatos.com/v1/feriados/' + CONVERT(VARCHAR(4), @anio);
 
--- 1. Llamar API de feriados
-DECLARE @URL NVARCHAR(500) = 'https://api.argentinadatos.com/v1/feriados/' + CONVERT(VARCHAR(4), @anio);
-DECLARE @Object INT,
-        @ResponseText NVARCHAR(MAX);
+    DECLARE @Object INT,
+            @ResponseText NVARCHAR(MAX);
 
-EXEC sp_OACreate 'MSXML2.ServerXMLHTTP.6.0', @Object OUT;
-EXEC sp_OAMethod @Object, 'open', NULL, 'GET', @URL, false;
-EXEC sp_OAMethod @Object, 'setRequestHeader', NULL, 'User-Agent', 'SQLServer';
-EXEC sp_OAMethod @Object, 'setRequestHeader', NULL, 'Accept', 'application/json';
-EXEC sp_OAMethod @Object, 'send';
-EXEC sp_OAMethod @Object, 'responseText', @ResponseText OUTPUT;
-EXEC sp_OADestroy @Object;
+    EXEC sp_OACreate 'MSXML2.ServerXMLHTTP.6.0', @Object OUT;
+    EXEC sp_OAMethod @Object, 'open', NULL, 'GET', @URL, false;
+    EXEC sp_OAMethod @Object, 'setRequestHeader', NULL, 'User-Agent', 'SQLServer';
+    EXEC sp_OAMethod @Object, 'setRequestHeader', NULL, 'Accept', 'application/json';
+    EXEC sp_OAMethod @Object, 'send';
+    EXEC sp_OAMethod @Object, 'responseText', @ResponseText OUTPUT;
+    EXEC sp_OADestroy @Object;
 
--- 2. Parsear feriados en tabla temporal
-;WITH Feriados AS (
-    SELECT CAST(fecha AS DATE) AS fecha
-    FROM OPENJSON(@ResponseText)
-         WITH (fecha DATE '$.fecha')
-)
+    -- 2. Parsear feriados
+    ;WITH Feriados AS (
+        SELECT CAST(fecha AS DATE) AS fecha
+        FROM OPENJSON(@ResponseText)
+             WITH (fecha DATE '$.fecha')
+    )
 
--- 3. Generar dias del mes, filtrar habiles no feriados, numerar
-, DiasMes AS (
-    SELECT DATEADD(day, v.number, DATEFROMPARTS(YEAR(@fecha), MONTH(@fecha), 1)) AS fecha
-    FROM master..spt_values v
-    WHERE v.type = 'P'
-      AND v.number BETWEEN 0 AND 31
-      AND MONTH(DATEADD(day, v.number, DATEFROMPARTS(YEAR(@fecha), MONTH(@fecha), 1))) = MONTH(@fecha)
-)
-, DiasHabilesNoFeriados AS (
-    SELECT d.fecha
-    FROM DiasMes d
-    LEFT JOIN Feriados f
-      ON d.fecha = f.fecha
-    WHERE DATEPART(weekday, d.fecha) NOT IN (6,7)  -- lunes-viernes
-      AND f.fecha IS NULL                          -- no feriado
-)
-, DiasConRanking AS (
-    SELECT fecha,
-           ROW_NUMBER() OVER (ORDER BY fecha) AS NumeroDiaHabil
-    FROM DiasHabilesNoFeriados
-)
-, QuintoDia AS (
-    SELECT fecha AS QuintoDiaHabil
-    FROM DiasConRanking
-    WHERE NumeroDiaHabil = 5
-)
-
--- 4. Resultado final
-SELECT
-    DATENAME(weekday, @fecha) AS NombreDia,
-    DATEPART(weekday, @fecha) AS NumeroDiaISO,
-    CONVERT(VARCHAR(10), @fecha, 23) AS Fecha_YYYYMMDD,
-    CASE
-      WHEN DATEPART(weekday, @fecha) IN (6, 7) THEN 'Es Fin de Semana'
-      WHEN EXISTS (SELECT 1 FROM Feriados WHERE fecha = @fecha) THEN 'Es Feriado'
-      ELSE 'Es dia habil'
-    END AS EstadoDia,
-    CONVERT(VARCHAR(10), (SELECT QuintoDiaHabil FROM QuintoDia), 23) AS QuintoDiaHabilDelMes,
-    CASE
-      WHEN @fecha = (SELECT QuintoDiaHabil FROM QuintoDia) THEN 'Emitir Comprobantes'
-      ELSE 'NO Emitir Comprobante'
-    END AS EsHoyElQuintoDiaHabil;
+    -- 3. Devolver 1 (habil) o 0 (no habil)
+    SELECT 
+        CASE 
+            WHEN DATEPART(weekday, @fecha) IN (6, 7)
+                 OR EXISTS (SELECT 1 FROM Feriados WHERE fecha = @fecha)
+            THEN 0
+            ELSE 1
+        END AS EsNoHabil;
+END
+GO
