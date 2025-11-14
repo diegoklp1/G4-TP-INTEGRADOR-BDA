@@ -48,19 +48,22 @@ VALUES
     ('Inquilino');  
 GO
 
-IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 1)
-    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Transferencia Bancaria');
+INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Transferencia Bancaria');
+INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Efectivo');
+INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Debito Automatico');
 
-IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 2)
-    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Efectivo');
+INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMINO');
+INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
+INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (3,'ADELANTADO');
 
-IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 3)
-    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Debito Automatico');
 
-INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMINO');
-INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
-INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (3,'ADELANTADO');
-
+PRINT 'Insertando Tipos de Pago Extraordinario...';
+INSERT INTO gastos.Tipo_Pago_Extraordinario (Id_tipo_pago, Nombre) 
+VALUES 
+    (1, 'Reparaciones'),
+    (2, 'Mejoras'),
+    (3, 'Fondo de Reserva');
+GO
 
 INSERT INTO [gastos].[Tipo_Gasto_Ordinario] (Nombre) VALUES
 ('BANCARIOS'),
@@ -76,3 +79,20 @@ INSERT INTO [gastos].[Tipo_Servicio] (Nombre) VALUES
 ('Gas'); 
 
 GO
+
+
+
+
+use COM5600_G04
+-- Habilitar la visualización de opciones avanzadas
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+GO
+
+-- Habilitar los procedimientos OLE Automation
+EXEC sp_configure 'Ole Automation Procedures', 1;
+RECONFIGURE;
+GO
+
+PRINT 'Ole Automation Procedures ha sido habilitado.';
+PRINT 'Vuelve a ejecutar tu script 05.';

@@ -12,31 +12,16 @@
 -- - Llanos Diego  , DNI: 45748387
 -- =============================================================
 
-USE COM5600_G04;
-GO
-IF NOT EXISTS (SELECT 1 FROM SYS.COLUMNS 
- 				WHERE OBJECT_ID = OBJECT_ID('pagos.Pago') 
- 				AND NAME = 'Procesado')
-BEGIN
-	ALTER TABLE pagos.Pago
-	ADD Procesado BIT NOT NULL DEFAULT 0;
-	PRINT 'Columna [Procesado] agregada a la tabla pagos.Pago.';
-END
-GO
-USE COM5600_G04
-GO
 
 -- 1. LIMPIEZA (Solo para pruebas)
-PRINT 'Limpiando tablas...';
-DELETE FROM pagos.Detalle_Pago;
-DELETE FROM pagos.Pago;
-DELETE FROM liquidacion.Detalle_Expensa_UF;
-DELETE FROM liquidacion.Liquidacion_Mensual;
-GO
+--PRINT 'Limpiando tablas...';
+--DELETE FROM pagos.Detalle_Pago;
+--DELETE FROM pagos.Pago;
+--DELETE FROM liquidacion.Detalle_Expensa_UF;
+--DELETE FROM liquidacion.Liquidacion_Mensual;
+
 USE COM5600_G04;
 GO
-
-
 ----------------------------------------------------------------------
 -- GASTO EXTRAORDINARIO - Abril 2025
 ----------------------------------------------------------------------
@@ -163,7 +148,11 @@ WHERE Id_Consorcio = 1
 IF @IdLiquidacionMes2 IS NULL
 BEGIN
 	PRINT 'Generando liquidación Mayo 2025';
+	 DECLARE @EsNoHabil INT;
+    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
 
+    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
+    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
     IF @EsNoHabil = 0
     BEGIN
 		EXEC sp_Generar_Liquidacion_Mensual
@@ -200,7 +189,11 @@ WHERE Id_Consorcio = 1
 IF @IdLiquidacionMes3 IS NULL
 BEGIN
 	PRINT 'Generando liquidación Junio 2025';
+	DECLARE @EsNoHabil INT;
+    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
 
+    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
+    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
     IF @EsNoHabil = 0
     BEGIN
 		EXEC sp_Generar_Liquidacion_Mensual

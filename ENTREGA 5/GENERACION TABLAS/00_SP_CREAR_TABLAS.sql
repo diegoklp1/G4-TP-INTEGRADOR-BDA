@@ -12,9 +12,6 @@
 -- - Llanos Diego  , DNI: 45748387
 
 -- =========================================================
-
------------------- CREACIÓN DE BBDD -------------------
--- Cambiar master
 USE master;
 GO
 
@@ -22,68 +19,40 @@ IF DB_ID('COM5600_G04') IS NOT NULL
 BEGIN
     ALTER DATABASE COM5600_G04 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
     DROP DATABASE COM5600_G04;
-
     PRINT 'Base de datos COM5600_G04 borrada correctamente.';
 END
 GO
 
--- Creo la base
 IF DB_ID('COM5600_G04') IS NULL
 BEGIN
     CREATE DATABASE COM5600_G04 
-	    PRINT 'Base de datos COM5600_G04 Creada.';
-END	
+    PRINT 'Base de datos COM5600_G04 Creada.';
+END 
 GO
 
--- Cambiar a COM5600_G04
 USE COM5600_G04;
 GO
 
 /* ============================================================
-   DROP de esquemas (solo si están vacíos)
-   ============================================================ */
-IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'negocio')
-    DROP SCHEMA negocio;
+  CREATE de esquemas
+ ============================================================ */
+
+IF SCHEMA_ID('negocio') IS NULL EXEC('CREATE SCHEMA negocio');
+GO
+IF SCHEMA_ID('gastos') IS NULL EXEC('CREATE SCHEMA gastos');
+GO
+IF SCHEMA_ID('unidades') IS NULL EXEC('CREATE SCHEMA unidades');
+GO
+IF SCHEMA_ID('liquidacion') IS NULL EXEC('CREATE SCHEMA liquidacion');
+GO
+IF SCHEMA_ID('pagos') IS NULL EXEC('CREATE SCHEMA pagos');
 GO
 
-IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'gastos')
-    DROP SCHEMA gastos;
-GO
-
-IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'unidades')
-    DROP SCHEMA unidades;
-GO
-
-IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'liquidacion')
-    DROP SCHEMA liquidacion;
-GO
-
-IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'pagos')
-    DROP SCHEMA pagos;
-GO
-
-/* ============================================================
-   CREATE de esquemas
-   ============================================================ */
-
-CREATE SCHEMA negocio;
-GO
-
-CREATE SCHEMA gastos;
-GO
-
-CREATE SCHEMA unidades;
-GO
-
-CREATE SCHEMA liquidacion;
-GO
-
-CREATE SCHEMA pagos;
-GO
+PRINT 'Esquemas creados (negocio, gastos, unidades, liquidacion, pagos).';
 
 /* =========================================================
-   TABLAS - ESQUEMA: negocio
-   ========================================================= */
+  TABLAS - ESQUEMA: negocio
+ ========================================================= */
 
 CREATE TABLE negocio.Administracion 
 (
@@ -140,12 +109,12 @@ CREATE TABLE negocio.Estado_Financiero
 
 
 /* =========================================================
-   TABLAS - ESQUEMA: gastos
-   ========================================================= */
+  TABLAS - ESQUEMA: gastos
+ ========================================================= */
 
 CREATE TABLE gastos.Tipo_Pago_Extraordinario
 (
-    Id_tipo_pago int IDENTITY(1,1) PRIMARY KEY, 
+    Id_tipo_pago int PRIMARY KEY,
     Nombre varchar(50)
 );
 
@@ -207,7 +176,7 @@ CREATE TABLE gastos.Gasto_General
     Id_gasto int PRIMARY KEY,
     Descripcion varchar(100),
     Nombre_Responsable varchar(60),
-    Nro_factura decimal(10,2),
+    Nro_factura varchar(50), -- Cambiado de decimal a varchar
     CONSTRAINT FK_GG_GO FOREIGN KEY (Id_gasto)
         REFERENCES gastos.Gasto_Ordinario(Id_gasto)
 );
@@ -258,15 +227,15 @@ CREATE TABLE gastos.Gasto_Servicio_Publico
 
 
 /* =========================================================
-   TABLAS - ESQUEMA: unidades
-   ========================================================= */
+  TABLAS - ESQUEMA: unidades
+ ========================================================= */
 
 CREATE TABLE unidades.Unidad_Funcional
 (
     Id_Consorcio int,
     NroUF VARCHAR(10),
     Piso varchar(5),
-    Departamento varchar(2),
+    Departamento varchar(5), -- Ajustado de 2 a 5
     Coeficiente decimal(5,2),
     M2_UF smallint,
     Baulera bit,
@@ -287,7 +256,7 @@ CREATE TABLE unidades.TipoRelacionPersonaUnidad
 CREATE TABLE unidades.Persona
 (
     Id_Persona int IDENTITY(1,1) PRIMARY KEY,
-    DNI varchar(15) NOT NULL UNIQUE,
+    DNI varchar(15) NOT NULL, 
     Nombre varchar(80),
     Apellido varchar(80),
     Email varchar(100),
@@ -315,8 +284,8 @@ CREATE TABLE unidades.Unidad_Persona
 
 
 /* =========================================================
-   TABLAS - ESQUEMA: liquidacion
-   ========================================================= */
+  TABLAS - ESQUEMA: liquidacion
+ ========================================================= */
 
 CREATE TABLE liquidacion.Liquidacion_Mensual
 (
@@ -358,8 +327,8 @@ CREATE TABLE liquidacion.Mora
 
 
 /* =========================================================
-   TABLAS - ESQUEMA: pagos
-   ========================================================= */
+  TABLAS - ESQUEMA: pagos
+ ========================================================= */
 
 CREATE TABLE pagos.Forma_De_Pago 
 (
@@ -369,18 +338,19 @@ CREATE TABLE pagos.Forma_De_Pago
 
 CREATE TABLE pagos.Pago 
 (
-    Id_Pago int IDENTITY(1,1) PRIMARY KEY,
+    Id_Pago int PRIMARY KEY,
     Id_Forma_De_Pago int,
     Fecha date,
     Cuenta_Origen varchar(22) NOT NULL,
     Importe decimal(9,2),
     Es_Pago_Asociado bit,
+    Procesado bit DEFAULT 0,
     CONSTRAINT FK_Pago_Forma FOREIGN KEY (Id_Forma_De_Pago) REFERENCES pagos.Forma_De_Pago(Id_Forma_De_Pago)
 );
 
 CREATE TABLE pagos.Tipo_ingreso 
 (
-    Id_Tipo_Ingreso int IDENTITY(1,1) PRIMARY KEY,
+    Id_Tipo_Ingreso int PRIMARY KEY, 
     Nombre varchar(50)
 );
 
@@ -395,3 +365,6 @@ CREATE TABLE pagos.Detalle_Pago
     CONSTRAINT FK_DP_Expensa FOREIGN KEY (Id_Detalle_Expensa) REFERENCES liquidacion.Detalle_Expensa_UF(Id_Detalle_Expensa),
     CONSTRAINT FK_DP_TipoIng FOREIGN KEY (Id_Tipo_Ingreso) REFERENCES pagos.Tipo_ingreso(Id_Tipo_Ingreso)
 );
+
+PRINT 'Estructura de tablas con esquemas creada exitosamente.';
+GO

@@ -21,7 +21,7 @@
 --
 -- Implementacion de formato XML.
 
-CREATE OR ALTER PROCEDURE dbo.sp_ReporteRecaudacionSemanal
+CREATE PROCEDURE dbo.sp_ReporteRecaudacionSemanal
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
