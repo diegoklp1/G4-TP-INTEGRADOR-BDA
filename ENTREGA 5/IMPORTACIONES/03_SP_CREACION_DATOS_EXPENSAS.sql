@@ -2,7 +2,7 @@
 -- SCRIPT: 03_SP_CREACION_DATOS_EXPENSAS.sql
 -- PROPOSITO: STORED PROCEDURE QUE CARGA LAS TABLAS RESTANES
 -- LIQUIDACION MENSUAL, EXPENSAS, APLICACION DE PAGOS
-
+--
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
 -- Grupo:				04
@@ -10,17 +10,16 @@
 -- Integrantes:
 -- - Llanos Franco , DNI: 43629080
 -- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
+-- - Llanos Diego  , DNI: 45748387
 -- =============================================================
-USE COM5600_G04
-
+USE COM5600_G04;
+GO
 
 -- GENERACION DE LIQUIDACION MENSUAL
-IF OBJECT_ID('sp_Generar_Liquidacion_Mensual', 'P') IS NOT NULL
-    DROP PROCEDURE sp_Generar_Liquidacion_Mensual;
+IF OBJECT_ID('dbo.sp_Generar_Liquidacion_Mensual', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_Generar_Liquidacion_Mensual;
 GO
-CREATE PROCEDURE sp_Generar_Liquidacion_Mensual
+CREATE PROCEDURE dbo.sp_Generar_Liquidacion_Mensual
     @Id_Consorcio INT,
     @Anio INT,
     @Mes INT,
@@ -36,7 +35,7 @@ BEGIN
 
     BEGIN TRY
         -- 1. Validar que no exista
-        IF EXISTS (SELECT 1 FROM Liquidacion_Mensual 
+        IF EXISTS (SELECT 1 FROM liquidacion.Liquidacion_Mensual 
                    WHERE Id_Consorcio = @Id_Consorcio AND Periodo = @Periodo)
         BEGIN
             THROW 50001, 'La liquidacion para este consorcio y periodo ya existe.', 1;
@@ -45,17 +44,17 @@ BEGIN
 
         -- 2. Calcular totales de gastos del periodo
         SELECT @TotalOrdinarios = ISNULL(SUM(Importe_Total), 0)
-        FROM Gasto_Ordinario
+        FROM gastos.Gasto_Ordinario
         WHERE Id_Consorcio = @Id_Consorcio
           AND YEAR(Fecha) = @Anio AND MONTH(Fecha) = @Mes;
 
         SELECT @TotalExtraordinarios = ISNULL(SUM(Importe), 0)
-        FROM Gasto_Extraordinario
+        FROM gastos.Gasto_Extraordinario
         WHERE Id_Consorcio = @Id_Consorcio
           AND YEAR(Fecha) = @Anio AND MONTH(Fecha) = @Mes;
 
         -- 3. Insertar la liquidacion mensual (encabezado)
-        INSERT INTO Liquidacion_Mensual (
+        INSERT INTO liquidacion.Liquidacion_Mensual (
             Id_Consorcio,
             Periodo,
             Fecha_Emision,
@@ -93,11 +92,11 @@ GO
 
 
 -- GENERACION DE EXPENSAS
-IF OBJECT_ID('sp_Generar_Detalle_Expensas', 'P') IS NOT NULL
-    DROP PROCEDURE sp_Generar_Detalle_Expensas;
+IF OBJECT_ID('dbo.sp_Generar_Detalle_Expensas', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_Generar_Detalle_Expensas;
 GO
 
-CREATE PROCEDURE sp_Generar_Detalle_Expensas
+CREATE PROCEDURE dbo.sp_Generar_Detalle_Expensas
     @Id_Liquidacion_Mensual INT
 AS
 BEGIN
@@ -116,8 +115,8 @@ BEGIN
             @TotalExt = L.Total_Gasto_Extraordinarios,
             @PrecioCochera = C.Precio_Cochera,
             @PrecioBaulera = C.Precio_Baulera
-        FROM Liquidacion_Mensual AS L
-        JOIN Consorcio AS C ON L.Id_Consorcio = C.Id_Consorcio
+        FROM liquidacion.Liquidacion_Mensual AS L
+        JOIN negocio.Consorcio AS C ON L.Id_Consorcio = C.Id_Consorcio
         WHERE L.Id_Liquidacion_Mensual = @Id_Liquidacion_Mensual;
 
         IF @Id_Consorcio IS NULL
@@ -127,10 +126,10 @@ BEGIN
         END
 
         -- 2. (Re)generar los detalles
-        DELETE FROM Detalle_Expensa_UF WHERE Id_Expensa = @Id_Liquidacion_Mensual;
+        DELETE FROM liquidacion.Detalle_Expensa_UF WHERE Id_Expensa = @Id_Liquidacion_Mensual;
 
         -- 3. Insertar todos los detalles de expensas (uno por UF)
-        INSERT INTO Detalle_Expensa_UF (
+        INSERT INTO liquidacion.Detalle_Expensa_UF (
             Id_Expensa, Id_Consorcio, NroUf, Saldo_Anterior, Pagos_Recibidos_Mes,
             Deuda, Interes_Por_Mora, Importe_Ordinario_Prorrateado,
             Importe_Extraordinario_Prorrateado, Total_A_Pagar
@@ -159,16 +158,16 @@ BEGIN
             (@TotalExt * UF.Coeficiente / 100)
             AS Total_A_Pagar
 
-        FROM Unidad_Funcional AS UF
+        FROM unidades.Unidad_Funcional AS UF
         
         -- Buscamos la liquidacion del mes anterior
-        LEFT JOIN Liquidacion_Mensual AS PREV_LIQ 
+        LEFT JOIN liquidacion.Liquidacion_Mensual AS PREV_LIQ 
             ON PREV_LIQ.Id_Consorcio = UF.Id_Consorcio
             -- Comparamos DATE vs DATE, en lugar de DATETIME vs DATE
             AND CAST(PREV_LIQ.Periodo AS DATE) = DATEADD(MONTH, -1, @Periodo)
 
         -- Buscamos el detalle de expensa de esa liquidacion anterior
-        LEFT JOIN Detalle_Expensa_UF AS PREV_DET
+        LEFT JOIN liquidacion.Detalle_Expensa_UF AS PREV_DET
             ON PREV_DET.Id_Expensa = PREV_LIQ.Id_Liquidacion_Mensual
             AND PREV_DET.NroUf = UF.NroUf
 
@@ -189,10 +188,10 @@ GO
 
 
 -- APLICACION DE PAGOS
-IF OBJECT_ID('sp_Procesar_Pagos', 'P') IS NOT NULL
-    DROP PROCEDURE sp_Procesar_Pagos;
+IF OBJECT_ID('dbo.sp_Procesar_Pagos', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_Procesar_Pagos;
 GO
-CREATE PROCEDURE sp_Procesar_Pagos
+CREATE PROCEDURE dbo.sp_Procesar_Pagos
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -206,10 +205,10 @@ BEGIN
             P.Fecha AS Fecha_Pago,
             ROW_NUMBER() OVER (ORDER BY P.Fecha, P.Id_Pago) AS RowId
         INTO #PagosAProcesar
-        FROM Pago AS P
-        JOIN Persona AS PER 
+        FROM pagos.Pago AS P
+        JOIN unidades.Persona AS PER 
             ON P.Cuenta_Origen = PER.Cbu_Cvu
-        JOIN Unidad_Persona AS UP 
+        JOIN unidades.Unidad_Persona AS UP 
             ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
         WHERE P.Es_Pago_Asociado = 1
           AND P.Procesado = 0;
@@ -249,8 +248,8 @@ BEGIN
                     @IdDetalleExpensa = DE.Id_Detalle_Expensa,
                     @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes),
                     @FechaVencimiento1 = LM.Fecha_Vencimiento1
-                FROM Detalle_Expensa_UF AS DE
-                JOIN Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
+                FROM liquidacion.Detalle_Expensa_UF AS DE
+                JOIN liquidacion.Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
                 WHERE DE.Id_Consorcio = @IdConsorcio
                   AND DE.NroUf = @NroUF
                   AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01
@@ -275,17 +274,17 @@ BEGIN
                     SET @MontoAAplicar = @MontoRestantePago;
 
                 BEGIN TRY
-                    UPDATE Detalle_Expensa_UF
+                    UPDATE liquidacion.Detalle_Expensa_UF
                     SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @MontoAAplicar
                     WHERE Id_Detalle_Expensa = @IdDetalleExpensa;
                     
-                    INSERT INTO Detalle_Pago 
+                    INSERT INTO pagos.Detalle_Pago 
                         (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado)
                     VALUES 
                         (@IdPago, @IdDetalleExpensa, @IdTipoIngreso, @MontoAAplicar);
 
                     SET @MontoRestantePago = @MontoRestantePago - @MontoAAplicar;
-                    --PRINT '  -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
+                    --PRINT '   -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
 
                 END TRY
                 BEGIN CATCH
@@ -294,7 +293,7 @@ BEGIN
                     BREAK; 
                 END CATCH
             END 
-            UPDATE Pago
+            UPDATE pagos.Pago
             SET Procesado = 1
             WHERE Id_Pago = @IdPago;
             SET @i = @i + 1;
