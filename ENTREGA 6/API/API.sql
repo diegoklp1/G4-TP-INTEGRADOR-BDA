@@ -2,6 +2,11 @@
 -- SCRIPT: API.sql
 -- PROPOSITO: Implementacion de API Feriados para busqueda
 -- de dias habiles o no habiles.
+--
+-- IMPORTANTE: Puede que necesite configurar el protocolo de
+-- conexion desde powershell
+-- Ejecutar desde powershell la siguiente linea de codigo:
+-- [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
