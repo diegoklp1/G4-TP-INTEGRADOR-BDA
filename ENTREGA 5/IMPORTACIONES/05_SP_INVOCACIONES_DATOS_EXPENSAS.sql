@@ -1,13 +1,6 @@
 -- =============================================================
 -- SCRIPT: 05_SP_INVOCACIONES_DATOS_EXPENSAS.sql
--- PROPOSITO: SCRIPT DE EJECUCION DE IMPORTACIONES
--- Base de Datos: COM5600_G04
--- 
--- IMPORTANTE: 
--- 1. Ejecutar este script EN ORDEN.
--- 2. Asegurarse de que las rutas a los archivos sean correctas.
--- 3. Para OPENROWSET (Excel), el archivo debe estar en una carpeta con
---    permisos para el servicio de SQL Server (ej: C:\Temp\Import\).
+-- PROPOSITO: SCRIPT DE EJECUCION DE DATOS EXPENSAS
 -- 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
