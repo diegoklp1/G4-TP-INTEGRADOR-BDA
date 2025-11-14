@@ -1,9 +1,7 @@
 -- =========================================================
 -- SCRIPT: Reportes.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte para analizar el flujo de caja en forma 
--- semanal.
--- Implementación de formato XML.
+-- PROPOSITO: Generacion del Store Procedure para generacion
+-- de reportes.
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
@@ -17,9 +15,12 @@
 -- =========================================================
 
 ---Reporte 1
---Se desea analizar el flujo de caja en forma semanal. Debe presentar la recaudación por
+--Se desea analizar el flujo de caja en forma semanal. Debe presentar la recaudacion por
 --pagos ordinarios y extraordinarios de cada semana, el promedio en el periodo, y el
 --acumulado progresivo.
+--
+-- Implementacion de formato XML.
+
 USE COM5600_G04;
 GO
 
@@ -93,25 +94,8 @@ BEGIN
 END
 GO
 
--- =========================================================
--- SCRIPT: Reportes2.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte donde se vea el total de recaudación por mes 
--- y departamento en formato de tabla cruzada.
-
--- Fecha de entrega:	14/11/2025
--- Comision:			5600
--- Grupo:				04
--- Materia:				Bases de datos aplicada
--- Integrantes:
--- - Llanos Franco , DNI: 43629080
--- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
--- =========================================================
-
 ---Reporte 2
----Presente el total de recaudación por mes y departamento en formato de tabla cruzada.
+---Presente el total de recaudacion por mes y departamento en formato de tabla cruzada.
 USE COM5600_G04;
 GO
 
@@ -151,26 +135,9 @@ BEGIN
 END;
 GO
 
--- =========================================================
--- SCRIPT: Reportes3.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte con la recaudación total desagregada según 
--- su procedencia.
-
--- Fecha de entrega:	14/11/2025
--- Comision:			5600
--- Grupo:				04
--- Materia:				Bases de datos aplicada
--- Integrantes:
--- - Llanos Franco , DNI: 43629080
--- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
--- =========================================================
-
 ---Reporte 3
---Presente un cuadro cruzado con la recaudación total desagregada según su procedencia
---(ordinario, extraordinario, etc.) según el periodo.
+--Presente un cuadro cruzado con la recaudacion total desagregada segun su procedencia
+--(ordinario, extraordinario, etc.) segun el periodo.
 USE COM5600_G04;
 GO
 
@@ -183,7 +150,7 @@ BEGIN
     SET NOCOUNT ON;
 
     ;WITH RecaudacionBase AS (
-        /* 1. Obtenemos todos los pagos y los componentes de la expensa a la que se aplicaron */
+        -- 1. Obtenemos todos los pagos y los componentes de la expensa a la que se aplicaron
         SELECT 
             FORMAT(p.Fecha, 'yyyy-MM') AS Periodo,
             dp.Importe_Usado,
@@ -204,7 +171,7 @@ BEGIN
             AND dexp.Id_Consorcio = @IdConsorcio
     ),
     PagosProporcionales AS (
-        /* 2. Distribuimos proporcionalmente el 'Importe_Usado' */
+        -- 2. Distribuimos proporcionalmente el 'Importe_Usado' 
         SELECT
             Periodo,
             
@@ -229,9 +196,8 @@ BEGIN
         FROM RecaudacionBase
         WHERE TotalComponentes > 0 
     )
-    /* 3. Agrupamos por período. Esto crea el "cuadro cruzado" que pide el PIVOT, 
-          pero de forma más simple y robusta.
-    */
+    -- 3. Agrupamos por periodo. Esto crea el "cuadro cruzado" que pide el PIVOT, 
+    -- pero de forma más simple y robusta.
     SELECT 
         Periodo,
         ISNULL(SUM(PagoOrdinario), 0) AS [Ordinario],
@@ -242,26 +208,10 @@ BEGIN
     ORDER BY Periodo;
 END;
 GO
--- =========================================================
--- SCRIPT: Reportes4.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte para obtener los 5 (cinco) meses de mayores 
--- gastos y los 5 (cinco) de mayores ingresos.
--- Implementamos el formato del reporte en XML.
-
--- Fecha de entrega:	14/11/2025
--- Comision:			5600
--- Grupo:				04
--- Materia:				Bases de datos aplicada
--- Integrantes:
--- - Llanos Franco , DNI: 43629080
--- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
--- =========================================================
 
 ---Reporte 4
 --Obtenga los 5 (cinco) meses de mayores gastos y los 5 (cinco) de mayores ingresos.
+-- Implementamos el formato del reporte en XML.
 USE COM5600_G04;
 GO
 
@@ -363,40 +313,13 @@ BEGIN
 END;
 GO
 
--- =========================================================
--- SCRIPT: Reportes5.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte para obtener los 3 (tres) propietarios con 
--- mayor morosidad. 
--- Presente información de contacto y DNI de los propietarios 
--- para que la administración los pueda contactar o remitir 
--- el trámite al estudio jurídico.
-
--- Fecha de entrega:	14/11/2025
--- Comision:			5600
--- Grupo:				04
--- Materia:				Bases de datos aplicada
--- Integrantes:
--- - Llanos Franco , DNI: 43629080
--- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
--- =========================================================
-
 ---Reporte 5
---Obtenga los 3 (tres) propietarios con mayor morosidad. Presente información de contacto y
---DNI de los propietarios para que la administración los pueda contactar o remitir el trámite al
---estudio jurídico.
+--Obtenga los 3 (tres) propietarios con mayor morosidad. Presente informacion de contacto y
+--DNI de los propietarios para que la administracion los pueda contactar o remitir el tramite al
+--estudio juridico.
 USE COM5600_G04;
 GO
 
-/*
-  VERSIÓN CORREGIDA DE SP_REPORTETOP3MOROSOS
-  - La lógica se basa en la deuda pendiente (Total - Pagos)
-    de la tabla Detalle_Expensa_UF.
-  - Ya no se une con Pago/Detalle_Pago, lo que nos permite
-    encontrar a la gente que NO pagó.
-*/
 CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
     @Id_Consorcio INT,
     @Piso VARCHAR(5),
@@ -407,7 +330,6 @@ BEGIN
     ;WITH CTE_Deuda AS (
         SELECT 
             p.Id_Persona,
-            -- Desciframos los datos personales para el reporte
             p.Apellido,
             p.Nombre,
             p.DNI,
@@ -443,83 +365,9 @@ BEGIN
 
 END;
 GO
-/*
-CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
-    @Id_Consorcio INT,
-    @Piso VARCHAR(5),
-    @Anio INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    -- 1. Abrir la clave para descifrar los datos
-    OPEN SYMMETRIC KEY Key_DatosSensibles
-    DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
-
-    ;WITH CTE_Deuda AS (
-        SELECT 
-            p.Id_Persona,
-            -- Desciframos los datos personales para el reporte
-            CONVERT(VARCHAR, DECRYPTBYKEY(p.Apellido)) + ', ' + 
-            CONVERT(VARCHAR, DECRYPTBYKEY(p.Nombre)) AS Propietario,
-            CONVERT(VARCHAR, DECRYPTBYKEY(p.DNI)) AS DNI,
-            CONVERT(VARCHAR, DECRYPTBYKEY(p.Email)) AS Email,
-            CONVERT(VARCHAR, DECRYPTBYKEY(p.Telefono)) AS Telefono,
-            uf.Piso,
-            lm.Periodo,
-            -- Esta es la verdadera medida de morosidad: el saldo pendiente
-            (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) AS Saldo_Pendiente
-        FROM Detalle_Expensa_UF deu
-        INNER JOIN Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa
-        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF
-        INNER JOIN Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF
-        INNER JOIN Persona p ON p.Id_Persona = up.Id_Persona
-        WHERE 
-            deu.Id_Consorcio = @Id_Consorcio
-            AND uf.Piso = @Piso
-            AND YEAR(lm.Periodo) = @Anio
-            AND up.Fecha_Fin IS NULL
-            -- Buscamos expensas que tengan un saldo pendiente
-            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.01 
-    )
-    SELECT TOP 3
-        Propietario,
-        DNI,
-        Email,
-        Telefono,
-        Piso,
-        SUM(Saldo_Pendiente) AS DeudaTotalAcumulada,
-        COUNT(DISTINCT Periodo) AS Cant_Periodos_Adeudados
-    FROM CTE_Deuda
-    GROUP BY Propietario, DNI, Email, Telefono, Piso
-    ORDER BY DeudaTotalAcumulada DESC;
-
-    -- 2. Cerrar la clave
-    CLOSE SYMMETRIC KEY Key_DatosSensibles;
-END;
-GO
-*/
-
--- =========================================================
--- SCRIPT: Reportes6.sql
--- PROPÓSITO: Generación del Store Procedure para generación
--- del reporte que uestre las fechas de pagos de expensas 
--- ordinarias de cada UF y la cantidad de días que pasan 
--- entre un pago y el siguiente, para el conjunto examinado.
-
--- Fecha de entrega:	14/11/2025
--- Comision:			5600
--- Grupo:				04
--- Materia:				Bases de datos aplicada
--- Integrantes:
--- - Llanos Franco , DNI: 43629080
--- - Varela Daniel , DNI: 40388978
--- - Llanos Diego  , DNI: 45748387
-
--- =========================================================
 
 ---Reporte 6
---Muestre las fechas de pagos de expensas ordinarias de cada UF y la cantidad de días que
+--Muestre las fechas de pagos de expensas ordinarias de cada UF y la cantidad de dias que
 --pasan entre un pago y el siguiente, para el conjunto examinado.
 USE COM5600_G04;
 GO

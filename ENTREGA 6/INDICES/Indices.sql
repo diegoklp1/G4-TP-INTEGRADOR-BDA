@@ -1,7 +1,7 @@
 -- =========================================================
 -- SCRIPT: Ejecucion.sql
--- PROPÓSITO: Generar los indices para mejorar el rendimiento
--- al buscar la información para la generación de reportes.
+-- PROPOSITO: Generar los indices para mejorar el rendimiento
+-- al buscar la informacion para la generacion de reportes.
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
@@ -14,7 +14,7 @@
 
 -- =========================================================
 
----Script de Generación de Indices
+---Script de Generacion de Indices
 USE COM5600_G04;
 GO
 

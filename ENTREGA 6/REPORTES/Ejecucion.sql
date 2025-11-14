@@ -1,6 +1,6 @@
 -- =========================================================
 -- SCRIPT: Ejecucion.sql
--- PROPÓSITO: Ejecutar los stored procedures para obtener los
+-- PROPOSITO: Ejecutar los stored procedures para obtener los
 -- 6 reportes. Se pueden ejecutar todos a la vez o de a uno.
 
 -- Fecha de entrega:	14/11/2025
@@ -14,7 +14,7 @@
 
 -- =========================================================
 
----Script de Ejecución
+---Script de Ejecucion
 USE COM5600_G04;
 GO
 
@@ -61,7 +61,7 @@ GO
 BEGIN TRY
 	EXEC dbo.sp_ReporteTopMesesIngresosGastos 
 		@IdConsorcio = 1, 
-		@IdTipoGasto = NULL,  -- o un ID específico
+		@IdTipoGasto = NULL,  -- o un ID especifico
 		@Anio = 2025;
 END TRY
 BEGIN CATCH

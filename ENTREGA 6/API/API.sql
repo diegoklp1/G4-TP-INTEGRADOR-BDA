@@ -1,7 +1,7 @@
 -- =========================================================
 -- SCRIPT: API.sql
--- PROPÓSITO: Implementación de API Feriados para busqueda
--- de quinto día habil del mes para la generación de 
+-- PROPOSITO: Implementacion de API Feriados para busqueda
+-- de quinto dia habil del mes para la generacion de 
 -- comprobantes.
 
 -- Fecha de entrega:	14/11/2025
@@ -24,10 +24,10 @@ DECLARE @fecha DATE = GETDATE();
 --Utilizo una fecha cargada a mano
 --DECLARE @fecha DATE = '2025-12-05';
 
-DECLARE @año INT = YEAR(@fecha);
+DECLARE @anio INT = YEAR(@fecha);
 
 -- 1. Llamar API de feriados
-DECLARE @URL NVARCHAR(500) = 'https://api.argentinadatos.com/v1/feriados/' + CONVERT(VARCHAR(4), @año);
+DECLARE @URL NVARCHAR(500) = 'https://api.argentinadatos.com/v1/feriados/' + CONVERT(VARCHAR(4), @anio);
 DECLARE @Object INT,
         @ResponseText NVARCHAR(MAX);
 
@@ -46,7 +46,7 @@ EXEC sp_OADestroy @Object;
          WITH (fecha DATE '$.fecha')
 )
 
--- 3. Generar días del mes, filtrar hábiles no feriados, numerar
+-- 3. Generar dias del mes, filtrar habiles no feriados, numerar
 , DiasMes AS (
     SELECT DATEADD(day, v.number, DATEFROMPARTS(YEAR(@fecha), MONTH(@fecha), 1)) AS fecha
     FROM master..spt_values v
@@ -81,7 +81,7 @@ SELECT
     CASE
       WHEN DATEPART(weekday, @fecha) IN (6, 7) THEN 'Es Fin de Semana'
       WHEN EXISTS (SELECT 1 FROM Feriados WHERE fecha = @fecha) THEN 'Es Feriado'
-      ELSE 'Es día habil'
+      ELSE 'Es dia habil'
     END AS EstadoDia,
     CONVERT(VARCHAR(10), (SELECT QuintoDiaHabil FROM QuintoDia), 23) AS QuintoDiaHabilDelMes,
     CASE
