@@ -1,7 +1,6 @@
 -- =========================================================
 -- SCRIPT: 00_SP_CREAR_TABLAS.sql
 -- PROPOSITO: Creacion de tablas y creacion de base de datos.
--- Implementación de formato XML.
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
