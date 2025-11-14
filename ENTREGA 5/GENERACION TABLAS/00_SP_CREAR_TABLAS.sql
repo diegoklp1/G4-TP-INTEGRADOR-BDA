@@ -1,8 +1,9 @@
------------------- CREACIÃ“N DE BBDD -------------------
+------------------ CREACIÓN DE BBDD -------------------
 
 -- Cambiar al contexto master
 USE master;
 GO
+
 
 -- Eliminar la base
 IF DB_ID('COM5600_G04') IS NOT NULL
@@ -19,12 +20,9 @@ BEGIN
 	    PRINT 'Base de datos COM5600_G04 Creada.';
 END	
 GO
-
 -- Cambiar al contexto COM5600_G04
 USE COM5600_G04;
-GO
-
------------------- CREACIÃ“N DE TABLAS -------------------
+------------------ CREACIÓN DE TABLAS -------------------
 -- Cree las entidades y relaciones. Incluya restricciones y claves --
 
 ------------- Consorcio ----------
@@ -357,7 +355,7 @@ IF OBJECT_ID('Pago') IS NULL
 BEGIN
 	CREATE TABLE Pago 
 	(
-		Id_Pago int IDENTITY(1,1) PRIMARY KEY,
+		Id_Pago int PRIMARY KEY,
 		Id_Forma_De_Pago int,
 		Fecha date,
 		Cuenta_Origen varchar(22) NOT NULL,
@@ -372,7 +370,7 @@ IF OBJECT_ID('Tipo_ingreso') IS NULL
 BEGIN
 	CREATE TABLE Tipo_ingreso 
 	(
-		Id_Tipo_Ingreso int IDENTITY(1,1) PRIMARY KEY,
+		Id_Tipo_Ingreso int PRIMARY KEY,
 		Nombre varchar(50),
 	);
 END
