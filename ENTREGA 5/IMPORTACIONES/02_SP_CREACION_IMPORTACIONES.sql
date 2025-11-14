@@ -310,7 +310,6 @@ BEGIN
         -- Si el DNI no existe, inserta la persona
         WHEN NOT MATCHED BY TARGET AND s.rn = 1 THEN
             INSERT (
-                -- Id_persona (PK) se asume IDENTITY
                 DNI,
                 Nombre,
                 Apellido,
@@ -341,7 +340,7 @@ BEGIN
     END TRY
     BEGIN CATCH
         PRINT 'ERROR: No se pudo importar el archivo de Personas.';
-        --PRINT ERROR_MESSAGE();
+        PRINT ERROR_MESSAGE();
         THROW;
     END CATCH
 
@@ -409,7 +408,7 @@ BEGIN
 				ELSE 1 --propietario
 			END
         FROM #TempLink AS T
-        JOIN Persona AS P ON T.CBU_CSV = P.CBU_CVU; -- Ahora CBU_CSV esta limpio
+        JOIN Persona AS P ON T.CBU_CSV = P.CBU_CVU;
 
         UPDATE T
         SET T.Id_Consorcio_Limpio = C.Id_consorcio
@@ -504,8 +503,8 @@ BEGIN
 
         /* 
            Es asociado?
-           - Primero buscamos la persona por su CBU/CVU 
-           - Luego buscamos la unidad funcional relacionada a esa persona
+           - Primero busco la persona por su CBU/CVU 
+           - Luego busco la uf relacionada a esa persona
         */
         UPDATE T SET 
             T.Id_Persona = P.id_persona,
@@ -592,7 +591,7 @@ BEGIN
 
         -- TRANSFORMACION DE DATOS (ETL)
 
-        -- Borramos las filas de basura (titulos y encabezados)
+        -- Borramos las filas de titulos y encabezados
         DELETE FROM #TempProveedores 
         WHERE Tipo_gasto = 'Tipo gasto' OR Tipo_gasto IS NULL OR LTRIM(RTRIM(Tipo_gasto)) = '';
 

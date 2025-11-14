@@ -1,6 +1,6 @@
 /*
 ================================================================================
-SCRIPT DE ACTUALIZACION DE STORED PROCEDURES DE IMPORTACIÓN
+SCRIPT DE ACTUALIZACION DE STORED PROCEDURES DE IMPORTACIÃ“N
 Base de Datos: COM5600_G04
 ================================================================================
 */
@@ -8,9 +8,7 @@ Base de Datos: COM5600_G04
 USE COM5600_G04;
 GO
 
--- 3. sp_Importar_Personas
--- Importa inquilinos y propietarios desde un CSV a la tabla Persona.
--- Realiza limpieza de DNI, CBU y maneja duplicados internos del CSV.
+-- IMPORTAR PERSONAS ENCRIPTADO
 IF OBJECT_ID('sp_Importar_Personas', 'P') IS NOT NULL
     DROP PROCEDURE sp_Importar_Personas;
 GO
@@ -62,22 +60,6 @@ BEGIN
         UPDATE #TempPersonas SET DNI_Limpio = NULL WHERE ISNUMERIC(DNI_Limpio) = 0;
         DELETE FROM #TempPersonas WHERE DNI_Limpio IS NULL;
 
-		/*
-		-- VALIDACIÓN DE DUPLICADOS EN ORIGEN
-		DECLARE @DNIDuplicado VARCHAR(20);
-		SELECT TOP 1 @DNIDuplicado = DNI_Limpio
-		FROM #TempPersonas
-		GROUP BY DNI_Limpio
-		HAVING COUNT(*) > 1;
-
-		-- Si encuentro un duplicado
-		IF @DNIDuplicado IS NOT NULL
-		BEGIN
-        DECLARE @ErrorMsg VARCHAR(200) = 'ERROR: El archivo CSV tiene DNIs duplicados. El DNI ' + @DNIDuplicado + ' aparece más de una vez. Corregir archivo de origen.'; 
-        THROW 50001, @ErrorMsg, 1;
-        END
-		*/
-
         -- MERGE
 		OPEN SYMMETRIC KEY Key_DatosSensibles
 		DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
@@ -97,7 +79,6 @@ BEGIN
         ) AS S -- Source
         ON (T.DNI = ENCRYPTBYKEY(Key_GUID('Key_DatosSensibles'), S.DNI_Limpio) AND S.rn = 1)
 
-        -- Si el DNI no existe, inserta la persona
         WHEN NOT MATCHED BY TARGET AND s.rn = 1 THEN
             INSERT (
                 DNI,
@@ -140,9 +121,7 @@ BEGIN
 END
 GO
 
--- 4. sp_Importar_UF_Persona
--- Lee un CSV para vincular las Personas con sus Unidades Funcionales.
--- Utiliza el CBU/CVU como "llave" temporal para encontrar el DNI de la Persona.
+-- IMPORTAR PERSONA-UNIDAD FUNCIONAL ENCRIPTADO
 IF OBJECT_ID('sp_Importar_UF_Persona', 'P') IS NOT NULL
     DROP PROCEDURE sp_Importar_UF_Persona;
 GO
@@ -247,7 +226,7 @@ BEGIN
     BEGIN CATCH
 		IF (SELECT KEY_GUID('Key_DatosSensibles')) IS NOT NULL
             CLOSE SYMMETRIC KEY Key_DatosSensibles;
-        PRINT 'ERROR: No se pudo importar el archivo de vínculo UF-Persona.';
+        PRINT 'ERROR: No se pudo importar el archivo de vÃ­nculo UF-Persona.';
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH
@@ -258,10 +237,7 @@ END
 GO
 
 
--- 5. sp_Importar_PagosConsorcios
--- Importa un CSV de pagos. Inserta en la cabecera 'Pago' y luego, usando un
--- bucle 'WHILE' (sin cursores), aplica los montos a las expensas adeudadas
--- (lógica de conciliación) insertando en 'Detalle_Pago'.
+-- IMPORTAR PAGOS ECRIPTADOS
 IF OBJECT_ID('sp_Importar_PagosConsorcios') IS NOT NULL
     DROP PROCEDURE sp_Importar_PagosConsorcios;
 GO
@@ -332,18 +308,208 @@ BEGIN
 		CLOSE SYMMETRIC KEY Key_DatosSensibles;
 
 		DECLARE @FilasInsertadas INT = @@ROWCOUNT;
-        PRINT 'Importación completada. Se insertaron ' + CAST(@FilasInsertadas AS VARCHAR) + ' nuevos pagos.';
+        PRINT 'ImportaciÃ³n completada. Se insertaron ' + CAST(@FilasInsertadas AS VARCHAR) + ' nuevos pagos.';
 
     END TRY
     BEGIN CATCH
 		IF (SELECT KEY_GUID('Key_DatosSensibles')) IS NOT NULL
             CLOSE SYMMETRIC KEY Key_DatosSensibles;
             
-        PRINT ' Error en la importación de pagos consorcios (cifrado).';
+        PRINT ' Error en la importaciÃ³n de pagos consorcios (cifrado).';
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH;
 
     DROP TABLE #PagosTemp;
 END
+GO
+
+
+-- PROCESAR PAGOS ENCRIPTADOS
+IF OBJECT_ID('sp_Procesar_Pagos', 'P') IS NOT NULL
+    DROP PROCEDURE sp_Procesar_Pagos;
+GO
+CREATE OR ALTER PROCEDURE sp_Procesar_Pagos
+AS
+BEGIN
+    SET NOCOUNT ON;
+    OPEN SYMMETRIC KEY Key_DatosSensibles
+    DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
+
+    BEGIN TRY
+        SELECT 
+            P.Id_Pago,
+            P.Importe,
+            P.Cuenta_Origen,
+            UP.Id_Consorcio,
+            UP.NroUf,
+            P.Fecha AS Fecha_Pago,
+            ROW_NUMBER() OVER (ORDER BY P.Fecha, P.Id_Pago) AS RowId
+        INTO #PagosAProcesar
+        FROM Pago AS P
+        JOIN Persona AS PER 
+            ON P.Cuenta_Origen = CONVERT(VARCHAR, DECRYPTBYKEY(PER.Cbu_Cvu))
+        JOIN Unidad_Persona AS UP 
+            ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
+        WHERE P.Es_Pago_Asociado = 1
+          AND P.Procesado = 0;
+
+        DECLARE @RowCount INT = @@ROWCOUNT;
+        PRINT 'Pagos nuevos a procesar encontrados: ' + CAST(@RowCount AS VARCHAR);
+
+        DECLARE @i INT = 1;
+        DECLARE @IdPago INT, @ImportePago DECIMAL(9,2), @IdConsorcio INT, @NroUF VARCHAR(10);
+        DECLARE @MontoRestantePago DECIMAL(9,2);
+        DECLARE @FechaPago DATE;
+
+        WHILE @i <= @RowCount
+        BEGIN
+            SELECT 
+                @IdPago = Id_Pago,
+                @ImportePago = Importe,
+                @IdConsorcio = Id_Consorcio,
+                @NroUF = NroUf,
+                @FechaPago = Fecha_Pago
+            FROM #PagosAProcesar
+            WHERE RowId = @i;
+        
+            SET @MontoRestantePago = @ImportePago;
+            --PRINT 'Procesando Pago ID: ' + CAST(@IdPago AS VARCHAR) + ' por ' + CAST(@ImportePago AS VARCHAR) + ' para UF: ' + @NroUF;
+
+            WHILE @MontoRestantePago > 0
+            BEGIN
+                DECLARE @IdDetalleExpensa INT = NULL;
+                DECLARE @MontoAdeudado DECIMAL(9,2) = 0;
+                DECLARE @FechaVencimiento1 DATE;
+                DECLARE @IdTipoIngreso INT;
+
+                SELECT TOP 1
+                    @IdDetalleExpensa = DE.Id_Detalle_Expensa,
+                    @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes),
+                    @FechaVencimiento1 = LM.Fecha_Vencimiento1
+                FROM Detalle_Expensa_UF AS DE
+                JOIN Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
+                WHERE DE.Id_Consorcio = @IdConsorcio
+                  AND DE.NroUf = @NroUF
+                  AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01
+                ORDER BY LM.Periodo ASC;
+
+                IF @IdDetalleExpensa IS NULL
+                BEGIN
+                    --PRINT 'No hay mÃ¡s deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
+                    BREAK;
+                END
+
+                IF @FechaPago <= @FechaVencimiento1
+                    SET @IdTipoIngreso = 1; -- EN TERMINO
+                ELSE
+                    SET @IdTipoIngreso = 2; -- ADEUDADO
+
+                DECLARE @MontoAAplicar DECIMAL(9,2);
+
+                IF @MontoRestantePago >= @MontoAdeudado
+                    SET @MontoAAplicar = @MontoAdeudado;
+                ELSE
+                    SET @MontoAAplicar = @MontoRestantePago;
+
+                BEGIN TRY
+                    UPDATE Detalle_Expensa_UF
+                    SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @MontoAAplicar
+                    WHERE Id_Detalle_Expensa = @IdDetalleExpensa;
+                    
+                    INSERT INTO Detalle_Pago 
+                        (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado)
+                    VALUES 
+                        (@IdPago, @IdDetalleExpensa, @IdTipoIngreso, @MontoAAplicar);
+
+                    SET @MontoRestantePago = @MontoRestantePago - @MontoAAplicar;
+                    --PRINT '  -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
+
+                END TRY
+                BEGIN CATCH
+                    PRINT 'ERROR: Falla al aplicar pago ID ' + CAST(@IdPago AS VARCHAR) + ' a expensa ID ' + CAST(@IdDetalleExpensa AS VARCHAR);
+                    PRINT ERROR_MESSAGE();
+                    BREAK; 
+                END CATCH
+            END 
+
+            UPDATE Pago
+            SET Procesado = 1
+            WHERE Id_Pago = @IdPago;
+            
+            PRINT 'Pago ID ' + CAST(@IdPago AS VARCHAR) + ' marcado como Procesado.';
+
+            SET @i = @i + 1;
+        END 
+
+        CLOSE SYMMETRIC KEY Key_DatosSensibles;
+
+        DROP TABLE #PagosAProcesar;
+        --PRINT 'Proceso de imputaciÃ³n de pagos finalizado.';
+
+    END TRY
+    BEGIN CATCH
+        IF (SELECT KEY_GUID('Key_DatosSensibles')) IS NOT NULL
+            CLOSE SYMMETRIC KEY Key_DatosSensibles;
+            
+        PRINT 'ERROR: Falla en el procesamiento de pagos.';
+        PRINT ERROR_MESSAGE();
+        THROW;
+    END CATCH
+
+    SET NOCOUNT OFF;
+END
+GO
+
+-- MODIFICO EL REPORTE QUE MUESTRA LOS DATOS DE LAS PERSONAS
+IF OBJECT_ID('sp_ReporteTop3MorososPorConsorcioPisoAnio') IS NOT NULL
+    DROP PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio;
+GO
+CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
+    @Id_Consorcio INT,
+    @Piso VARCHAR(5),
+    @Anio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    OPEN SYMMETRIC KEY Key_DatosSensibles
+    DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
+
+    ;WITH CTE_Deuda AS (
+        SELECT 
+            p.Id_Persona,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Apellido)) + ', ' + 
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Nombre)) AS Propietario,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.DNI)) AS DNI,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Email)) AS Email,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Telefono)) AS Telefono,
+            uf.Piso,
+            lm.Periodo,
+            (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) AS Saldo_Pendiente
+        FROM Detalle_Expensa_UF deu
+        INNER JOIN Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa
+        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF
+        INNER JOIN Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF
+        INNER JOIN Persona p ON p.Id_Persona = up.Id_Persona
+        WHERE 
+            deu.Id_Consorcio = @Id_Consorcio
+            AND uf.Piso = @Piso
+            AND YEAR(lm.Periodo) = @Anio
+            AND up.Fecha_Fin IS NULL
+            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.01 
+    )
+    SELECT TOP 3
+        Propietario,
+        DNI,
+        Email,
+        Telefono,
+        Piso,
+        SUM(Saldo_Pendiente) AS DeudaTotalAcumulada,
+        COUNT(DISTINCT Periodo) AS Cant_Periodos_Adeudados
+    FROM CTE_Deuda
+    GROUP BY Propietario, DNI, Email, Telefono, Piso
+    ORDER BY DeudaTotalAcumulada DESC;
+
+    CLOSE SYMMETRIC KEY Key_DatosSensibles;
+END;
 GO

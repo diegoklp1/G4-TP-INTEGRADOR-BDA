@@ -192,114 +192,124 @@ GO
 IF OBJECT_ID('sp_Procesar_Pagos', 'P') IS NOT NULL
     DROP PROCEDURE sp_Procesar_Pagos;
 GO
-
 CREATE PROCEDURE sp_Procesar_Pagos
 AS
 BEGIN
     SET NOCOUNT ON;
+    BEGIN TRY
+        SELECT 
+            P.Id_Pago,
+            P.Importe,
+            P.Cuenta_Origen,
+            UP.Id_Consorcio,
+            UP.NroUf,
+            P.Fecha AS Fecha_Pago,
+            ROW_NUMBER() OVER (ORDER BY P.Fecha, P.Id_Pago) AS RowId
+        INTO #PagosAProcesar
+        FROM Pago AS P
+        JOIN Persona AS PER 
+            ON P.Cuenta_Origen = PER.Cbu_Cvu
+        JOIN Unidad_Persona AS UP 
+            ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
+        WHERE P.Es_Pago_Asociado = 1
+          AND P.Procesado = 0;
 
-    -- 1. Identificar pagos "Asociados" que NO hayan sido procesados
-    SELECT 
-        P.Id_Pago,
-        P.Importe,
-        P.Cuenta_Origen,
-        UP.Id_Consorcio,
-        UP.NroUf
-    INTO #PagosAProcesar
-    FROM Pago AS P
-    -- Cruce para encontrar la UF duenia del CBU/CVU
-    JOIN Persona AS PER ON P.Cuenta_Origen = PER.Cbu_Cvu
-    JOIN Unidad_Persona AS UP ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
-    -- Condicion: El pago esta asociado Y NO esta procesado
-    WHERE P.Es_Pago_Asociado = 1
-      AND P.Procesado = 0; -- <-- ESTA ES LA CLAVE NUEVA
+        DECLARE @RowCount INT = @@ROWCOUNT;
+        PRINT 'Pagos nuevos a procesar encontrados: ' + CAST(@RowCount AS VARCHAR);
 
-    PRINT 'Pagos nuevos a procesar encontrados: ' + CAST(@@ROWCOUNT AS VARCHAR);
+        DECLARE @i INT = 1;
+        DECLARE @IdPago INT, @ImportePago DECIMAL(9,2), @IdConsorcio INT, @NroUF VARCHAR(10);
+        DECLARE @MontoRestantePago DECIMAL(9,2);
+        DECLARE @FechaPago DATE;
 
-    -- 2. Declarar cursor para iterar pago por pago
-    DECLARE @IdPago INT, @ImportePago DECIMAL(9,2), @IdConsorcio INT, @NroUF VARCHAR(10);
-    DECLARE @MontoRestantePago DECIMAL(9,2);
-
-    DECLARE PagosCursor CURSOR FOR 
-        SELECT Id_Pago, Importe, Id_Consorcio, NroUf 
-        FROM #PagosAProcesar
-        WHERE Id_Consorcio IS NOT NULL; -- Solo procesamos los que encontramos UF
-
-    OPEN PagosCursor;
-    FETCH NEXT FROM PagosCursor INTO @IdPago, @ImportePago, @IdConsorcio, @NroUF;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        SET @MontoRestantePago = @ImportePago;
-        PRINT 'Procesando Pago ID: ' + CAST(@IdPago AS VARCHAR) + ' por ' + CAST(@ImportePago AS VARCHAR) + ' para UF: ' + @NroUF;
-
-        -- 3. Loop interno: Aplicar el pago a las deudas (expensas) mas antiguas primero
-        WHILE @MontoRestantePago > 0
+        WHILE @i <= @RowCount
         BEGIN
-            DECLARE @IdDetalleExpensa INT = NULL;
-            DECLARE @MontoAdeudado DECIMAL(9,2) = 0;
+            SELECT 
+                @IdPago = Id_Pago,
+                @ImportePago = Importe,
+                @IdConsorcio = Id_Consorcio,
+                @NroUF = NroUf,
+                @FechaPago = Fecha_Pago
+            FROM #PagosAProcesar
+            WHERE RowId = @i;
+            
+            
+            SET @MontoRestantePago = @ImportePago;
+            --PRINT 'Procesando Pago ID: ' + CAST(@IdPago AS VARCHAR) + ' por ' + CAST(@ImportePago AS VARCHAR) + ' para UF: ' + @NroUF;
 
-            -- Buscamos la expensa mas antigua con saldo deudor
-            SELECT TOP 1
-                @IdDetalleExpensa = DE.Id_Detalle_Expensa,
-                -- La deuda es el total MENOS lo que ya se haya pagado (quizas de un pago anterior)
-                @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes)
-            FROM Detalle_Expensa_UF AS DE
-            JOIN Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
-            WHERE DE.Id_Consorcio = @IdConsorcio
-              AND DE.NroUf = @NroUF
-              AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01 -- Umbral de deuda
-            ORDER BY LM.Periodo ASC; -- DEUDA MAS ANTIGUA
-
-            -- Si no hay mas deuda para esta UF, salimos del loop interno
-            IF @IdDetalleExpensa IS NULL
+            -- 3. Loop interno: Aplicar el pago a las deudas más antiguas
+            WHILE @MontoRestantePago > 0
             BEGIN
-                PRINT 'No hay mas deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
-                BREAK; -- Rompe el WHILE interno
-            END
+                DECLARE @IdDetalleExpensa INT = NULL;
+                DECLARE @MontoAdeudado DECIMAL(9,2) = 0;
+                DECLARE @FechaVencimiento1 DATE;
+                DECLARE @IdTipoIngreso INT;
 
-            DECLARE @MontoAAplicar DECIMAL(9,2);
+                SELECT TOP 1
+                    @IdDetalleExpensa = DE.Id_Detalle_Expensa,
+                    @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes),
+                    @FechaVencimiento1 = LM.Fecha_Vencimiento1
+                FROM Detalle_Expensa_UF AS DE
+                JOIN Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
+                WHERE DE.Id_Consorcio = @IdConsorcio
+                  AND DE.NroUf = @NroUF
+                  AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01
+                ORDER BY LM.Periodo ASC;
 
-            IF @MontoRestantePago >= @MontoAdeudado
-                SET @MontoAAplicar = @MontoAdeudado; -- El pago cubre la deuda
-            ELSE
-                SET @MontoAAplicar = @MontoRestantePago; -- El pago es parcial
+                IF @IdDetalleExpensa IS NULL
+                BEGIN
+                    --PRINT 'No hay más deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
+                    BREAK;
+                END
 
-            BEGIN TRY
-                -- 4. Actualizar la tabla de expensas
-                UPDATE Detalle_Expensa_UF
-                SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @MontoAAplicar
-                WHERE Id_Detalle_Expensa = @IdDetalleExpensa;
-                
-                -- Reducimos el monto restante del pago
-                SET @MontoRestantePago = @MontoRestantePago - @MontoAAplicar;
-                PRINT '  -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
+                IF @FechaPago <= @FechaVencimiento1
+                    SET @IdTipoIngreso = 1; -- EN TERMINO
+                ELSE
+                    SET @IdTipoIngreso = 2; -- ADEUDADO
 
-            END TRY
-            BEGIN CATCH
-                PRINT 'ERROR: Falla al aplicar pago ID ' + CAST(@IdPago AS VARCHAR) + ' a expensa ID ' + CAST(@IdDetalleExpensa AS VARCHAR);
-                PRINT ERROR_MESSAGE();
-                BREAK; 
-            END CATCH
-        END -- Fin loop interno (aplicacion de un pago)
+                DECLARE @MontoAAplicar DECIMAL(9,2);
 
-        -- 5. MARCAMOS EL PAGO COMO PROCESADO
-        -- Lo hacemos fuera del loop interno, una vez que el pago se consumio
-        -- o ya no hay mas deuda donde aplicarlo.
-        UPDATE Pago
-        SET Procesado = 1
-        WHERE Id_Pago = @IdPago;
-        
-        PRINT 'Pago ID ' + CAST(@IdPago AS VARCHAR) + ' marcado como Procesado.';
+                IF @MontoRestantePago >= @MontoAdeudado
+                    SET @MontoAAplicar = @MontoAdeudado;
+                ELSE
+                    SET @MontoAAplicar = @MontoRestantePago;
 
-        FETCH NEXT FROM PagosCursor INTO @IdPago, @ImportePago, @IdConsorcio, @NroUF;
-    END -- Fin loop externo (cursor de pagos)
+                BEGIN TRY
+                    UPDATE Detalle_Expensa_UF
+                    SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @MontoAAplicar
+                    WHERE Id_Detalle_Expensa = @IdDetalleExpensa;
+                    
+                    INSERT INTO Detalle_Pago 
+                        (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado)
+                    VALUES 
+                        (@IdPago, @IdDetalleExpensa, @IdTipoIngreso, @MontoAAplicar);
 
-    CLOSE PagosCursor;
-    DEALLOCATE PagosCursor;
+                    SET @MontoRestantePago = @MontoRestantePago - @MontoAAplicar;
+                    --PRINT '  -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
 
-    DROP TABLE #PagosAProcesar;
-    PRINT 'Proceso de imputacion de pagos (CORREGIDO) finalizado.';
+                END TRY
+                BEGIN CATCH
+                    PRINT 'ERROR: Falla al aplicar pago ID ' + CAST(@IdPago AS VARCHAR) + ' a expensa ID ' + CAST(@IdDetalleExpensa AS VARCHAR);
+                    PRINT ERROR_MESSAGE();
+                    BREAK; 
+                END CATCH
+            END 
+            UPDATE Pago
+            SET Procesado = 1
+            WHERE Id_Pago = @IdPago;
+            SET @i = @i + 1;
+        END 
+
+        DROP TABLE #PagosAProcesar;
+        --PRINT 'Proceso de imputación de pagos finalizado.';
+
+    END TRY
+    BEGIN CATCH  
+        PRINT 'ERROR: Falla en el procesamiento de pagos.';
+        PRINT ERROR_MESSAGE();
+        THROW;
+    END CATCH
+
     SET NOCOUNT OFF;
 END
 GO

@@ -7,7 +7,7 @@
 -- 1. Ejecutar este script EN ORDEN.
 -- 2. Asegurarse de que las rutas a los archivos sean correctas.
 -- 3. Para OPENROWSET (Excel), el archivo debe estar en una carpeta con
---    permisos para el servicio de SQL Server (ej: C:\Temp\Import\).
+--    permisos para el servicio de SQL Server
 -- 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
@@ -25,9 +25,6 @@ GO
 
 PRINT '--- Iniciando Proceso de Importacion de Datos ---';
 GO
-
--- NOTA: Las rutas 'D:\Diego\Downloads...' son de ejemplo.
--- Reemplazar por 'C:\Temp\Import\' o la ruta que corresponda.
 
 -- 1. Importar Consorcios (Excel)
 PRINT '1. Ejecutando sp_Importar_Consorcios...';
