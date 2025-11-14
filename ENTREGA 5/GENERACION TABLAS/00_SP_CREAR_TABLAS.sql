@@ -1,4 +1,19 @@
------------------- CREACI�N DE BBDD -------------------
+-- =========================================================
+-- SCRIPT: 00_SP_CREAR_TABLAS.sql
+-- PROPOSITO: Creacion de tablas y creacion de base de datos.
+-- Implementación de formato XML.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =========================================================
+------------------ CREACION DE BBDD -------------------
 
 -- Cambiar al contexto master
 USE master;
@@ -22,7 +37,7 @@ END
 GO
 -- Cambiar al contexto COM5600_G04
 USE COM5600_G04;
------------------- CREACI�N DE TABLAS -------------------
+------------------ CREACION DE TABLAS -------------------
 -- Cree las entidades y relaciones. Incluya restricciones y claves --
 
 ------------- Consorcio ----------
