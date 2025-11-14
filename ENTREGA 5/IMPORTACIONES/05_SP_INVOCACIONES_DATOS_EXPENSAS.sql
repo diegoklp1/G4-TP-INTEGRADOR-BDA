@@ -60,16 +60,27 @@ WHERE Id_Consorcio = 1
 
 IF @IdLiquidacionMes1 IS NULL
 BEGIN
+
     PRINT 'Generando liquidación Abril 2025';
 
-    EXEC sp_Generar_Liquidacion_Mensual
-        @Id_Consorcio = 1,
-        @Anio = 2025,
-        @Mes = 4,
-        @Id_Liquidacion_Generada = @IdLiquidacionMes1 OUTPUT;
+    --Comentado, descomentar si se busca comparar por una fecha especifica
+    --IF dbo.EsDiaNoHabil('2025-11-24') = 1
+    IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
+    BEGIN
+        EXEC sp_Generar_Liquidacion_Mensual
+            @Id_Consorcio = @IdConsorcioPrueba,
+            @Anio = 2025,
+            @Mes = 4,
+            @Id_Liquidacion_Generada = @IdLiquidacionMes1 OUTPUT;
 
-    EXEC sp_Generar_Detalle_Expensas 
-        @Id_Liquidacion_Mensual = @IdLiquidacionMes1;
+        EXEC sp_Generar_Detalle_Expensas 
+            @Id_Liquidacion_Mensual = @IdLiquidacionMes1;
+    END
+    ELSE
+    BEGIN
+        PRINT 'La fecha es día NO hábil. No se ejecuta.';
+    END
+
 END
 ELSE
 BEGIN
@@ -153,14 +164,23 @@ IF @IdLiquidacionMes2 IS NULL
 BEGIN
     PRINT 'Generando liquidación Mayo 2025';
 
-    EXEC sp_Generar_Liquidacion_Mensual
-        @Id_Consorcio = 1,
-        @Anio = 2025,
-        @Mes = 5,
-        @Id_Liquidacion_Generada = @IdLiquidacionMes2 OUTPUT;
+    --Comentado, descomentar si se busca comparar por una fecha especifica
+    --IF dbo.EsDiaNoHabil('2025-11-24') = 1
+    IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
+    BEGIN
+        EXEC sp_Generar_Liquidacion_Mensual
+            @Id_Consorcio = 1,
+            @Anio = 2025,
+            @Mes = 5,
+            @Id_Liquidacion_Generada = @IdLiquidacionMes2 OUTPUT;
 
-    EXEC sp_Generar_Detalle_Expensas 
-        @Id_Liquidacion_Mensual = @IdLiquidacionMes2;
+        EXEC sp_Generar_Detalle_Expensas 
+            @Id_Liquidacion_Mensual = @IdLiquidacionMes2;
+    END
+    ELSE
+    BEGIN
+        PRINT 'La fecha es día NO hábil. No se ejecuta.';
+    END
 END
 ELSE
 BEGIN
@@ -187,14 +207,23 @@ IF @IdLiquidacionMes3 IS NULL
 BEGIN
     PRINT 'Generando liquidación Junio 2025';
 
-    EXEC sp_Generar_Liquidacion_Mensual
-        @Id_Consorcio = 1,
-        @Anio = 2025,
-        @Mes = 6,
-        @Id_Liquidacion_Generada = @IdLiquidacionMes3 OUTPUT;
+    --Comentado, descomentar si se busca comparar por una fecha especifica
+    --IF dbo.EsDiaNoHabil('2025-11-24') = 1
+    IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
+    BEGIN
+        EXEC sp_Generar_Liquidacion_Mensual
+            @Id_Consorcio = 1,
+            @Anio = 2025,
+            @Mes = 6,
+            @Id_Liquidacion_Generada = @IdLiquidacionMes3 OUTPUT;
 
-    EXEC sp_Generar_Detalle_Expensas 
-        @Id_Liquidacion_Mensual = @IdLiquidacionMes3;
+        EXEC sp_Generar_Detalle_Expensas 
+            @Id_Liquidacion_Mensual = @IdLiquidacionMes3;
+    END
+    ELSE
+    BEGIN
+        PRINT 'La fecha es día NO hábil. No se ejecuta.';
+    END
 END
 ELSE
 BEGIN
