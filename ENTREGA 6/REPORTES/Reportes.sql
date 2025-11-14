@@ -23,7 +23,7 @@
 USE COM5600_G04;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_ReporteRecaudacionSemanal
+CREATE PROCEDURE dbo.sp_ReporteRecaudacionSemanal
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
@@ -182,37 +182,66 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    /*
-        El detalle de pagos se une con los tipos de ingreso (Tipo_Ingreso)
-        y las fechas de los pagos. Filtramos por el consorcio y el rango de fechas.
-    */
-
-    ;WITH Recaudacion AS (
+    ;WITH RecaudacionBase AS (
+        /* 1. Obtenemos todos los pagos y los componentes de la expensa a la que se aplicaron */
         SELECT 
             FORMAT(p.Fecha, 'yyyy-MM') AS Periodo,
-            ti.Nombre AS TipoIngreso,
-            SUM(dp.Importe_Usado) AS TotalRecaudado
+            dp.Importe_Usado,
+            
+            -- Componentes de la expensa
+            dexp.Importe_Ordinario_Prorrateado,
+            dexp.Importe_Extraordinario_Prorrateado,
+            dexp.Interes_Por_Mora,
+            
+            -- Calculamos el total de los componentes de esa expensa
+            (dexp.Importe_Ordinario_Prorrateado + dexp.Importe_Extraordinario_Prorrateado + dexp.Interes_Por_Mora) AS TotalComponentes
+            
         FROM Pago p
         INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
         INNER JOIN Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa
-        INNER JOIN Tipo_Ingreso ti ON ti.Id_Tipo_Ingreso = dp.Id_Tipo_Ingreso
         WHERE 
             p.Fecha BETWEEN @FechaInicio AND @FechaFin
             AND dexp.Id_Consorcio = @IdConsorcio
-        GROUP BY FORMAT(p.Fecha, 'yyyy-MM'), ti.Nombre
+    ),
+    PagosProporcionales AS (
+        /* 2. Distribuimos proporcionalmente el 'Importe_Usado' */
+        SELECT
+            Periodo,
+            
+            -- Pago Ordinario
+            CASE 
+                WHEN TotalComponentes = 0 THEN 0
+                ELSE Importe_Usado * (Importe_Ordinario_Prorrateado / TotalComponentes)
+            END AS PagoOrdinario,
+            
+            -- Pago Extraordinario
+            CASE 
+                WHEN TotalComponentes = 0 THEN 0
+                ELSE Importe_Usado * (Importe_Extraordinario_Prorrateado / TotalComponentes)
+            END AS PagoExtraordinario,
+            
+            -- Pago Mora
+            CASE 
+                WHEN TotalComponentes = 0 THEN 0
+                ELSE Importe_Usado * (Interes_Por_Mora / TotalComponentes)
+            END AS PagoMora
+            
+        FROM RecaudacionBase
+        WHERE TotalComponentes > 0 
     )
-
-    -- Tabla cruzada (PIVOT) que muestra las recaudaciones por tipo de ingreso
-    SELECT *
-    FROM Recaudacion
-    PIVOT (
-        SUM(TotalRecaudado)
-        FOR TipoIngreso IN ([Ordinario], [Extraordinario], [Mora], [Adelantado], [Otros])
-    ) AS TablaCruzada
+    /* 3. Agrupamos por período. Esto crea el "cuadro cruzado" que pide el PIVOT, 
+          pero de forma más simple y robusta.
+    */
+    SELECT 
+        Periodo,
+        ISNULL(SUM(PagoOrdinario), 0) AS [Ordinario],
+        ISNULL(SUM(PagoExtraordinario), 0) AS [Extraordinario],
+        ISNULL(SUM(PagoMora), 0) AS [Mora]       
+    FROM PagosProporcionales
+    GROUP BY Periodo
     ORDER BY Periodo;
 END;
 GO
-
 -- =========================================================
 -- SCRIPT: Reportes4.sql
 -- PROPÓSITO: Generación del Store Procedure para generación
@@ -361,6 +390,60 @@ GO
 USE COM5600_G04;
 GO
 
+/*
+  VERSIÓN CORREGIDA DE SP_REPORTETOP3MOROSOS
+  - La lógica se basa en la deuda pendiente (Total - Pagos)
+    de la tabla Detalle_Expensa_UF.
+  - Ya no se une con Pago/Detalle_Pago, lo que nos permite
+    encontrar a la gente que NO pagó.
+*/
+CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
+    @Id_Consorcio INT,
+    @Piso VARCHAR(5),
+    @Anio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    ;WITH CTE_Deuda AS (
+        SELECT 
+            p.Id_Persona,
+            -- Desciframos los datos personales para el reporte
+            p.Apellido,
+            p.Nombre,
+            p.DNI,
+            p.Email,
+            p.Telefono,
+            uf.Piso,
+            lm.Periodo,
+            (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) AS Saldo_Pendiente
+        FROM Detalle_Expensa_UF deu
+        INNER JOIN Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa
+        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF
+        INNER JOIN Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF
+        INNER JOIN Persona p ON p.Id_Persona = up.Id_Persona
+        WHERE 
+            deu.Id_Consorcio = @Id_Consorcio
+            AND uf.Piso = @Piso
+            AND YEAR(lm.Periodo) = @Anio
+            AND up.Fecha_Fin IS NULL
+            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.00
+    )
+    SELECT TOP 3
+        Nombre,
+		Apellido,
+        DNI,
+        Email,
+        Telefono,
+        Piso,
+        SUM(Saldo_Pendiente) AS DeudaTotalAcumulada,
+        COUNT(DISTINCT Periodo) AS Cant_Periodos_Adeudados
+    FROM CTE_Deuda
+    GROUP BY Nombre,Apellido,DNI, Email, Telefono, Piso
+    ORDER BY DeudaTotalAcumulada DESC;
+
+END;
+GO
+/*
 CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
     @Id_Consorcio INT,
     @Piso VARCHAR(5),
@@ -369,34 +452,35 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    ;WITH CTE_Morosidad AS (
+    -- 1. Abrir la clave para descifrar los datos
+    OPEN SYMMETRIC KEY Key_DatosSensibles
+    DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
+
+    ;WITH CTE_Deuda AS (
         SELECT 
-            c.Id_Consorcio,
-            uf.NroUF,
-            uf.Piso,
             p.Id_Persona,
-            p.Apellido + ', ' + p.Nombre AS Propietario,
-            p.DNI,
-            p.Email,
-            p.Telefono,
+            -- Desciframos los datos personales para el reporte
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Apellido)) + ', ' + 
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Nombre)) AS Propietario,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.DNI)) AS DNI,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Email)) AS Email,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Telefono)) AS Telefono,
+            uf.Piso,
             lm.Periodo,
-            lm.Fecha_Vencimiento1,
-            pag.Fecha AS Fecha_Pago,
-            DATEDIFF(DAY, lm.Fecha_Vencimiento1, pag.Fecha) AS Dias_Mora
-        FROM Pago pag
-        INNER JOIN Detalle_Pago dp ON pag.Id_Pago = dp.Id_Pago
-        INNER JOIN Detalle_Expensa_UF deu ON dp.Id_Detalle_Expensa = deu.Id_Detalle_Expensa
+            -- Esta es la verdadera medida de morosidad: el saldo pendiente
+            (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) AS Saldo_Pendiente
+        FROM Detalle_Expensa_UF deu
         INNER JOIN Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa
         INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF
         INNER JOIN Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF
         INNER JOIN Persona p ON p.Id_Persona = up.Id_Persona
-        INNER JOIN Consorcio c ON c.Id_Consorcio = uf.Id_Consorcio
         WHERE 
-            c.Id_Consorcio = @Id_Consorcio
+            deu.Id_Consorcio = @Id_Consorcio
             AND uf.Piso = @Piso
             AND YEAR(lm.Periodo) = @Anio
             AND up.Fecha_Fin IS NULL
-            AND DATEDIFF(DAY, lm.Fecha_Vencimiento1, pag.Fecha) > 0
+            -- Buscamos expensas que tengan un saldo pendiente
+            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.01 
     )
     SELECT TOP 3
         Propietario,
@@ -404,15 +488,17 @@ BEGIN
         Email,
         Telefono,
         Piso,
-        AVG(Dias_Mora) AS Promedio_Dias_Mora,
-        COUNT(DISTINCT Periodo) AS Cant_Periodos_Moroso,
-        SUM(CASE WHEN Dias_Mora > 0 THEN 1 ELSE 0 END) AS Cant_Pagos_Tardios
-    FROM CTE_Morosidad
+        SUM(Saldo_Pendiente) AS DeudaTotalAcumulada,
+        COUNT(DISTINCT Periodo) AS Cant_Periodos_Adeudados
+    FROM CTE_Deuda
     GROUP BY Propietario, DNI, Email, Telefono, Piso
-    ORDER BY Promedio_Dias_Mora DESC, Cant_Pagos_Tardios DESC;
+    ORDER BY DeudaTotalAcumulada DESC;
+
+    -- 2. Cerrar la clave
+    CLOSE SYMMETRIC KEY Key_DatosSensibles;
 END;
 GO
-
+*/
 
 -- =========================================================
 -- SCRIPT: Reportes6.sql
@@ -453,11 +539,10 @@ BEGIN
             LEAD(p.Fecha) OVER (PARTITION BY uf.NroUF ORDER BY p.Fecha) AS FechaPagoSiguiente
         FROM Pago p
         INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
-        INNER JOIN Tipo_Ingreso ti ON ti.Id_Tipo_Ingreso = dp.Id_Tipo_Ingreso
         INNER JOIN Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa
         INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF
         WHERE 
-            ti.Nombre = 'Ordinario'
+            dexp.Importe_Ordinario_Prorrateado > 0
             AND p.Fecha BETWEEN @FechaInicio AND @FechaFin
             AND dexp.Id_Consorcio = @IdConsorcio
     )
@@ -468,7 +553,9 @@ BEGIN
         DATEDIFF(DAY, FechaPago, FechaPagoSiguiente) AS DiasEntrePagos
     FROM PagosOrdinarios
     WHERE FechaPagoSiguiente IS NOT NULL
-    ORDER BY NroUF, FechaPago;
+    GROUP BY NroUF, FechaPago, FechaPagoSiguiente
+    ORDER BY NroUF, FechaPago;;
 END;
 GO
+
 

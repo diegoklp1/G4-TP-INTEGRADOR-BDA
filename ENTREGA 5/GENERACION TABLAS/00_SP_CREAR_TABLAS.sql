@@ -1,4 +1,4 @@
------------------- CREACIÓN DE BBDD -------------------
+------------------ CREACIï¿½N DE BBDD -------------------
 
 -- Cambiar al contexto master
 USE master;
@@ -22,7 +22,7 @@ END
 GO
 -- Cambiar al contexto COM5600_G04
 USE COM5600_G04;
------------------- CREACIÓN DE TABLAS -------------------
+------------------ CREACIï¿½N DE TABLAS -------------------
 -- Cree las entidades y relaciones. Incluya restricciones y claves --
 
 ------------- Consorcio ----------
@@ -361,6 +361,7 @@ BEGIN
 		Cuenta_Origen varchar(22) NOT NULL,
 		Importe decimal(9,2),
 		Es_Pago_Asociado bit,
+		Procesado bit NOT NULL DEFAULT 0,
 		CONSTRAINT FK_Pago_Forma_De_Pago FOREIGN KEY (Id_Forma_De_Pago) REFERENCES Forma_De_Pago(Id_Forma_De_Pago),
 	);
 END
