@@ -1,3 +1,18 @@
+-- =============================================================
+-- SCRIPT: 01_SP_DATOSINICIALES.sql
+-- PROPOSITO: Insertar los datos iniciales basicos en las tablas.
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =============================================================
+
 -- DATOS DE PRUEBA INICIALES
 
 USE COM5600_G04
@@ -19,12 +34,12 @@ VALUES (
     'Av. de Mayo 1234, CABA',          -- Direccion
     '11-4567-8901',                    -- Telefono
     'contacto@admbda.com',             -- Email
-    '0170123400001234567890',          -- Cuenta_Deposito (CBU de 22 d�gitos)
+    '0170123400001234567890',          -- Cuenta_Deposito (CBU de 22 digitos)
 	1000,
 	1000
 );
 GO
--- Insertamos los tipos de relaci�n que una persona puede tener con una UF
+-- Insertamos los tipos de relacion que una persona puede tener con una UF
 -- (El ID_Tipo_Relacion_P_U es IDENTITY, por eso no lo especificamos)
 
 INSERT INTO TipoRelacionPersonaUnidad (Nombre) 
@@ -40,7 +55,7 @@ IF NOT EXISTS (SELECT 1 FROM Forma_De_Pago WHERE Id_Forma_De_Pago = 2)
     INSERT INTO Forma_De_Pago (Nombre) VALUES ('Efectivo');
 
 IF NOT EXISTS (SELECT 1 FROM Forma_De_Pago WHERE Id_Forma_De_Pago = 3)
-    INSERT INTO Forma_De_Pago (Nombre) VALUES ('D�bito Autom�tico');
+    INSERT INTO Forma_De_Pago (Nombre) VALUES ('Debito Automatico');
 
 INSERT INTO Tipo_ingreso (Id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMINO');
 INSERT INTO Tipo_ingreso (Id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
@@ -91,10 +106,10 @@ BEGIN
     DECLARE @PrecioCochera DECIMAL(9,2), @PrecioBaulera DECIMAL(9,2);
 
     BEGIN TRY
-        -- 1. Obtener datos de la liquidación "padre" y del consorcio
+        -- 1. Obtener datos de la liquidacion "padre" y del consorcio
         SELECT 
             @Id_Consorcio = L.Id_Consorcio,
-            -- Importante: Convertimos el PERIODO (datetime) a DATE aquí
+            -- Importante: Convertimos el PERIODO (datetime) a DATE aqui
             @Periodo = CAST(L.Periodo AS DATE),
             @TotalOrd = L.Total_Gasto_Ordinarios,
             @TotalExt = L.Total_Gasto_Extraordinarios,
@@ -106,7 +121,7 @@ BEGIN
 
         IF @Id_Consorcio IS NULL
         BEGIN
-            THROW 50001, 'No se encontró la liquidación mensual especificada.', 1;
+            THROW 50001, 'No se encontro la liquidacion mensual especificada.', 1;
             RETURN;
         END
 
@@ -136,7 +151,7 @@ BEGIN
             (@TotalExt * UF.Coeficiente / 100) AS Importe_Extraordinario_Prorrateado,
             
             (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0)) + -- Deuda
-            (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0) * 0.05) + -- Interés
+            (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0) * 0.05) + -- Interes
             (@TotalOrd * UF.Coeficiente / 100) + 
             (CASE WHEN UF.Cochera = 1 THEN @PrecioCochera ELSE 0 END) +
             (CASE WHEN UF.Baulera = 1 THEN @PrecioBaulera ELSE 0 END) +
@@ -145,21 +160,21 @@ BEGIN
 
         FROM Unidad_Funcional AS UF
         
-        -- Buscamos la liquidación del mes anterior
+        -- Buscamos la liquidacion del mes anterior
         LEFT JOIN Liquidacion_Mensual AS PREV_LIQ 
             ON PREV_LIQ.Id_Consorcio = UF.Id_Consorcio
-            -- *** LA CORRECCIÓN ESTÁ AQUÍ ***
+            -- *** LA CORRECCION ESTÁ AQUI ***
             -- Comparamos DATE vs DATE, en lugar de DATETIME vs DATE
             AND CAST(PREV_LIQ.Periodo AS DATE) = DATEADD(MONTH, -1, @Periodo)
 
-        -- Buscamos el detalle de expensa de esa liquidación anterior
+        -- Buscamos el detalle de expensa de esa liquidacion anterior
         LEFT JOIN Detalle_Expensa_UF AS PREV_DET
             ON PREV_DET.Id_Expensa = PREV_LIQ.Id_Liquidacion_Mensual
             AND PREV_DET.NroUf = UF.NroUf
 
         WHERE UF.Id_Consorcio = @Id_Consorcio;
 
-        PRINT 'Detalles de expensas (CORREGIDOS) generados para la liquidación ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
+        PRINT 'Detalles de expensas (CORREGIDOS) generados para la liquidacion ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
 
     END TRY
     BEGIN CATCH
