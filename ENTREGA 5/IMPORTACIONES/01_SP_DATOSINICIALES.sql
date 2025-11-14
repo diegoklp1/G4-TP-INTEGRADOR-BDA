@@ -18,7 +18,7 @@
 USE COM5600_G04
 GO
 -- DATOS DE ADMINSISTRACION
-INSERT INTO Administracion (
+INSERT INTO [negocio].[Administracion] (
     Razon_Social,
     CUIT,
     Direccion,
@@ -42,27 +42,27 @@ GO
 -- Insertamos los tipos de relacion que una persona puede tener con una UF
 -- (El ID_Tipo_Relacion_P_U es IDENTITY, por eso no lo especificamos)
 
-INSERT INTO TipoRelacionPersonaUnidad (Nombre) 
+INSERT INTO [unidades].[TipoRelacionPersonaUnidad](Nombre) 
 VALUES 
     ('Propietario'), 
     ('Inquilino');  
 GO
 
-IF NOT EXISTS (SELECT 1 FROM Forma_De_Pago WHERE Id_Forma_De_Pago = 1)
-    INSERT INTO Forma_De_Pago (Nombre) VALUES ('Transferencia Bancaria');
+IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 1)
+    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Transferencia Bancaria');
 
-IF NOT EXISTS (SELECT 1 FROM Forma_De_Pago WHERE Id_Forma_De_Pago = 2)
-    INSERT INTO Forma_De_Pago (Nombre) VALUES ('Efectivo');
+IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 2)
+    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Efectivo');
 
-IF NOT EXISTS (SELECT 1 FROM Forma_De_Pago WHERE Id_Forma_De_Pago = 3)
-    INSERT INTO Forma_De_Pago (Nombre) VALUES ('Debito Automatico');
+IF NOT EXISTS (SELECT 1 FROM [pagos].[Forma_De_Pago] WHERE Id_Forma_De_Pago = 3)
+    INSERT INTO [pagos].[Forma_De_Pago] (Nombre) VALUES ('Debito Automatico');
 
-INSERT INTO Tipo_ingreso (Id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMINO');
-INSERT INTO Tipo_ingreso (Id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
-INSERT INTO Tipo_ingreso (Id_Tipo_Ingreso,Nombre) VALUES (3,'ADELANTADO');
+INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMINO');
+INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
+INSERT INTO [pagos].[Tipo_ingreso] (Id_Tipo_Ingreso,Nombre) VALUES (3,'ADELANTADO');
 
 
-INSERT INTO Tipo_Gasto (Nombre) VALUES
+INSERT INTO [gastos].[Tipo_Gasto_Ordinario] (Nombre) VALUES
 ('BANCARIOS'),
 ('LIMPIEZA'),
 ('ADMINISTRACION'),
@@ -70,8 +70,9 @@ INSERT INTO Tipo_Gasto (Nombre) VALUES
 ('GASTOS GENERALES'),
 ('SERVICIOS PUBLICOS');
 
-INSERT INTO Tipo_Servicio (Nombre) VALUES
+INSERT INTO [gastos].[Tipo_Servicio] (Nombre) VALUES
 ('Agua'),
 ('Luz'),
 ('Gas'); 
+
 GO
