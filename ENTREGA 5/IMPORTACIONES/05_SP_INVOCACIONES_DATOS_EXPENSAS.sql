@@ -38,6 +38,16 @@ GO
 USE COM5600_G04;
 GO
 
+
+----------------------------------------------------------------------
+-- GASTO EXTRAORDINARIO - Abril 2025
+----------------------------------------------------------------------
+GO
+INSERT INTO Gasto_Extraordinario 
+    (Id_Consorcio, Id_tipo_pago, detalle_trabajo, Nro_Cuotas_Actual, Total_Cuotas, Importe, Fecha)
+VALUES 
+    (1, 1, 'Reparacion Porton Cochera', 1, 1, 45000.00, '2025-04-10');
+GO
 ----------------------------------------------------------------------
 -- MES 1 - Abril 2025
 ----------------------------------------------------------------------
@@ -110,19 +120,21 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM Pago WHERE Id_Pago = 99999)
     BEGIN
         INSERT INTO Pago (Id_Pago, Id_Forma_De_Pago, Fecha, Cuenta_Origen, Importe, Es_Pago_Asociado, Procesado)
-        VALUES (99999, 1, '2025-04-10', '1112192065530490000000', 500.00, 1, 0);
+        VALUES (99991, 1, '2025-04-10', '1112192065530490000000', 500.00, 1, 0);
+        
+        -- Pago que no va a tener un cbu asociado
+        INSERT INTO Pago (Id_Pago, Id_Forma_De_Pago, Fecha, Cuenta_Origen, Importe, Es_Pago_Asociado, Procesado)
+        VALUES (99990, 1, '2025-04-10', '1112192065530490000999', 500.00, 1, 0);
     END
     ELSE
-    BEGIN
-        UPDATE Pago SET Procesado = 0 WHERE Id_Pago = 99999;
-    END
 
     EXEC sp_Procesar_Pagos;
 
-    SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar
+    /* SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar
     FROM Detalle_Expensa_UF
     WHERE Id_Expensa = @IdLiquidacionMes1
       AND NroUf = '10';
+    */
 END
 GO
 
