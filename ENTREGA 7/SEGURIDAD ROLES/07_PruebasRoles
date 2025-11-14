@@ -1,0 +1,311 @@
+/*
+=========================================================
+-- SCRIPT: 07_PruebasRoles.sql
+-- PROPÓSITO: Validar que los Roles y Permisos del script 06
+--            funcionan correctamente según lo esperado.
+
+-- Fecha de entrega:    14/11/2025
+-- Comisión:            5600
+-- Grupo:               04
+-- Materia:             Bases de Datos Aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+=========================================================
+*/
+
+USE COM5600_G04;
+GO
+
+PRINT '================================================'
+PRINT '      INICIO SCRIPT 07_PruebasRoles.sql'
+PRINT '================================================'
+GO
+
+
+/*******************************************************
+  1. CREACIÓN DE USUARIOS DE PRUEBA PARA LOS ROLES
+********************************************************/
+PRINT '--- 1. Creando Usuarios de Prueba ---'
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_general')
+BEGIN
+    CREATE USER user_general WITHOUT LOGIN;
+    ALTER ROLE AdminGeneral ADD MEMBER user_general;
+    PRINT 'Usuario [user_general] asignado a rol [AdminGeneral].';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_bancario')
+BEGIN
+    CREATE USER user_bancario WITHOUT LOGIN;
+    ALTER ROLE AdminBancario ADD MEMBER user_bancario;
+    PRINT 'Usuario [user_bancario] asignado a rol [AdminBancario].';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_operativo')
+BEGIN
+    CREATE USER user_operativo WITHOUT LOGIN;
+    ALTER ROLE AdminOperativo ADD MEMBER user_operativo;
+    PRINT 'Usuario [user_operativo] asignado a rol [AdminOperativo].';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_sistemas')
+BEGIN
+    CREATE USER user_sistemas WITHOUT LOGIN;
+    ALTER ROLE Sistemas ADD MEMBER user_sistemas;
+    PRINT 'Usuario [user_sistemas] asignado a rol [Sistemas].';
+END
+GO
+
+
+
+/*******************************************************
+  2. PRUEBAS POR CADA ROL
+********************************************************/
+
+
+/* =====================================================
+   2.1 PRUEBA ROL: AdminGeneral
+   Puede modificar UF     -> SI
+   Puede importar Bancos  -> NO
+   Puede ver reportes     -> SI
+===================================================== */
+PRINT ''
+PRINT '=========== PRUEBA ROL: AdminGeneral =========='
+PRINT '--- PERMISOS: Modifica UF = SI | Importa = NO | Reportes = SI ---'
+GO
+SET NOCOUNT ON;
+
+EXECUTE AS USER = 'user_general';
+GO
+
+PRINT '--- Prueba 1 (DEBE FUNCIONAR): Modificar UF ---'
+BEGIN TRY
+    EXEC dbo.sp_ModificarUnidadFuncional @Id_Consorcio = 1, @NroUF = 1, @Piso = 'X', @Departamento = 'X',
+           @Coeficiente = 0.7, @M2_UF = 50, @Baulera = 0, @Cochera = 0,
+           @M2_Baulera = 0, @M2_Cochera = 0;
+    PRINT '>>> OK: Modificación ejecutada (o falló por datos, PERO NO por permisos).';
+END TRY
+BEGIN CATCH
+    IF ERROR_MESSAGE() LIKE '%permission was denied%'
+        PRINT '>>> ERROR: No se deberían negar permisos! ' + ERROR_MESSAGE();
+    ELSE
+        PRINT '>>> OK: Error válido del SP (por datos), permisos correctos.';
+END CATCH
+GO
+
+PRINT '--- Prueba 2 (DEBE FALLAR): Importación bancaria ---'
+BEGIN TRY
+    EXEC dbo.sp_Importar_Consorcios;
+    PRINT '>>> ERROR: ¡La importación se ejecutó y NO DEBERÍA!';
+END TRY
+BEGIN CATCH
+    PRINT '>>> OK: Error esperado. ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 3 (DEBE FUNCIONAR): Reporte ---'
+BEGIN TRY
+    EXEC dbo.sp_ReporteRecaudacionSemanal;
+    PRINT '>>> OK: El reporte se ejecutó.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+REVERT;
+GO
+PRINT '--- Fin pruebas AdminGeneral ---'
+
+
+
+/* =====================================================
+   2.2 PRUEBA ROL: AdminBancario
+   Puede modificar UF     -> NO
+   Puede importar Bancos  -> SI
+   Puede ver reportes     -> SI
+===================================================== */
+PRINT ''
+PRINT '=========== PRUEBA ROL: AdminBancario =========='
+PRINT '--- PERMISOS: Modifica UF = NO | Importa = SI | Reportes = SI ---'
+GO
+
+EXECUTE AS USER = 'user_bancario';
+GO
+
+PRINT '--- Prueba 1 (DEBE FALLAR): Modificar UF ---'
+BEGIN TRY
+    EXEC dbo.sp_ModificarUnidadFuncional @Id_Consorcio = 1, @NroUF = 1, @Piso='X', @Departamento='X',
+           @Coeficiente=0.9, @M2_UF=40, @Baulera=0, @Cochera=0,
+           @M2_Baulera=0, @M2_Cochera=0;
+
+    PRINT '>>> ERROR: ¡Modificó UF y NO DEBERÍA!';
+END TRY
+BEGIN CATCH
+    PRINT '>>> OK: Error esperado. ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 2 (DEBE FUNCIONAR): Importar Bancos ---'
+BEGIN TRY
+    EXEC dbo.sp_Importar_Consorcios;
+    PRINT '>>> OK: Importación ejecutada.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 3 (DEBE FUNCIONAR): Reporte ---'
+BEGIN TRY
+    EXEC dbo.sp_ReporteRecaudacionSemanal;
+    PRINT '>>> OK: El reporte se ejecutó.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+REVERT;
+GO
+PRINT '--- Fin pruebas AdminBancario ---'
+
+
+
+/* =====================================================
+   2.3 PRUEBA ROL: AdminOperativo
+   Puede modificar UF     -> SI
+   Puede importar Bancos  -> NO
+   Puede ver reportes     -> SI
+===================================================== */
+PRINT ''
+PRINT '=========== PRUEBA ROL: AdminOperativo =========='
+PRINT '--- PERMISOS: Modifica UF = SI | Importa = NO | Reportes = SI ---'
+GO
+
+EXECUTE AS USER = 'user_operativo';
+GO
+
+PRINT '--- Prueba 1 (DEBE FALLAR): Importación bancaria ---'
+BEGIN TRY
+    EXEC sp_Importar_Consorcios;
+    PRINT '>>> ERROR: La importación se ejecutó y NO DEBERÍA.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> OK: Error esperado. ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 2 (DEBE FUNCIONAR): Modificar UF ---'
+BEGIN TRY
+    EXEC dbo.sp_ModificarUnidadFuncional 
+        @Id_Consorcio = 1, @NroUF = 1, @Piso = 'X', @Departamento = 'X',
+        @Coeficiente = 0.3, @M2_UF = 60, @Baulera = 0, @Cochera = 0,
+        @M2_Baulera = 0, @M2_Cochera = 0;
+
+    PRINT '>>> OK: Modificación ejecutada (o falló por datos, pero no por permisos).';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 3 (DEBE FUNCIONAR): Reporte ---'
+BEGIN TRY
+    EXEC dbo.sp_ReporteRecaudacionSemanal;
+    PRINT '>>> OK: El reporte se ejecutó.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+REVERT;
+GO
+
+PRINT '--- Fin pruebas AdminOperativo ---'
+
+
+
+/* =====================================================
+   2.4 PRUEBA ROL: Sistemas
+   Puede modificar UF     -> NO
+   Puede importar Bancos  -> NO
+   Puede ver reportes     -> SI
+===================================================== */
+PRINT ''
+PRINT '=========== PRUEBA ROL: Sistemas =========='
+PRINT '--- PERMISOS: Modifica UF = NO | Importa = NO | Reportes = SI ---'
+GO
+
+EXECUTE AS USER = 'user_sistemas';
+GO
+
+PRINT '--- Prueba 1 (DEBE FALLAR): Modificar UF ---'
+BEGIN TRY
+    EXEC dbo.sp_ModificarUnidadFuncional @Id_Consorcio = 1, @NroUF = 1, @Piso='X', @Departamento='X',
+           @Coeficiente=1, @M2_UF=100, @Baulera=0, @Cochera=0,
+           @M2_Baulera=0, @M2_Cochera=0;
+    PRINT '>>> ERROR: El SP se ejecutó y NO debería.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> OK: Error esperado. ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 2 (DEBE FALLAR): Importar datos ---'
+BEGIN TRY
+    EXEC dbo.sp_Importar_Consorcios;
+    PRINT '>>> ERROR: La importación se ejecutó y NO DEBERÍA.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> OK: Error esperado. ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+PRINT '--- Prueba 3 (DEBE FUNCIONAR): Reporte ---'
+BEGIN TRY
+    EXEC dbo.sp_ReporteRecaudacionSemanal;
+    PRINT '>>> OK: El reporte se ejecutó.';
+END TRY
+BEGIN CATCH
+    PRINT '>>> ERROR inesperado: ' + ERROR_MESSAGE();
+END CATCH
+GO
+
+REVERT;
+GO
+
+PRINT '--- Fin pruebas Sistemas ---'
+
+
+
+/*******************************************************
+  3. LIMPIEZA DE USUARIOS DE PRUEBA
+********************************************************/
+PRINT ''
+PRINT '--- 3. Eliminando Usuarios de Prueba ---'
+
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_general')
+    DROP USER user_general;
+
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_general')
+    DROP USER user_bancario;
+
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_general')
+    DROP USER user_operativo;
+
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_general')
+    DROP USER user_sistemas;
+
+PRINT '>>> OK. Usuarios de prueba eliminados.'
+GO
+
+
+PRINT '      FIN SCRIPT 07_PruebasRoles.sql'
+GO
