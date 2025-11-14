@@ -1,9 +1,9 @@
 -- =========================================================
 -- SCRIPT: 06_Crear_RolesYPermisos.sql
--- PROP覵ITO: Crea los roles de seguridad y asigna los
+-- PROP脫SITO: Crea los roles de seguridad y asigna los
 --             permisos correspondientes.
 
--- Fecha de entrega:	07/11/2025
+-- Fecha de entrega:	14/11/2025
 -- Comision:			5600
 -- Grupo:				04
 -- Materia:				Bases de datos aplicada
@@ -15,13 +15,19 @@
 -- =========================================================
 
 use master
+GO
 
 USE COM5600_G04;
 GO
 
+
+
+
+/* =========================================================
+				  1. CREACI脫N DE ROLES
+========================================================= */
 PRINT '--- 1. Creando Roles ---'
 GO
--- Creacion de roles
 
 IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'AdminGeneral')
 BEGIN
@@ -51,30 +57,33 @@ BEGIN
 END
 GO
 
-
-
 PRINT '--- 2. Asignamos permisos ---'
 GO
+
+
+/* =========================================================
+			2. ASIGNACI脫N DE PERMISOS
+========================================================= */
 
 -- PERMISOS PARA AdminGeneral
 -- =========================================================
 -- ROL:Administrativo_General
--- Prop髎ito: 
+-- Prop贸sito: 
 --			Actualizacion de datos de UF		-> SI
 --			Importacion sw informacion bancaria -> NO
 --			Generacion de Reportes				-> SI
 -- =========================================================
 
 -- Permiso para "Actualizacion de datos de UF"
-GRANT EXECUTE ON sp_ModificarUnidadFuncional TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_ModificarUnidadFuncional TO AdminGeneral;
 
 -- Permiso para "Generacion de reportes" (Damos acceso a todos los SP de reporte)
-GRANT EXECUTE ON sp_ReporteRecaudacionSemanal TO AdminGeneral; 
-GRANT EXECUTE ON sp_ TO AdminGeneral; -- Reporte 2
-GRANT EXECUTE ON sp_ TO AdminGeneral; -- Reporte 3
-GRANT EXECUTE ON sp_ TO AdminGeneral; -- Reporte 4
-GRANT EXECUTE ON sp_ TO AdminGeneral; -- Reporte 5
-GRANT EXECUTE ON sp_ TO AdminGeneral; -- Reporte 6
+GRANT EXECUTE ON dbo.sp_Importar_Consorcios TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_Importar_Personas TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_Importar_UF_Persona TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_Importar_PagosConsorcios TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_Importar_Proveedores TO AdminGeneral;
+GRANT EXECUTE ON dbo.sp_Importar_UnidadesFuncionales TO AdminGeneral;
 
 -- Permiso de lectura (SELECT) para que los reportes funcionen
 GRANT SELECT ON SCHEMA::dbo TO AdminGeneral;
@@ -84,27 +93,27 @@ GRANT SELECT ON SCHEMA::dbo TO AdminGeneral;
 -- PERMISOS PARA AdminBancario
 -- =========================================================
 -- ROL:Administrativo_Bancario
--- Prop髎ito: 
+-- Prop贸sito: 
 --			Actualizacion de datos de UF		-> NO
 --			Importacion sw informacion bancaria -> SI
 --			Generacion de Reportes				-> SI
 -- =========================================================
 
 -- Permiso para "Importacion de informacion bancaria"
-GRANT EXECUTE ON sp_Importar_Consorcios TO AdminBancario;
-GRANT EXECUTE ON sp_Importar_Personas TO AdminBancario;
-GRANT EXECUTE ON sp_Importar_UF_Persona TO AdminBancario;
-GRANT EXECUTE ON sp_Importar_PagosConsorcios TO AdminBancario;
-GRANT EXECUTE ON sp_Importar_Proveedores TO AdminBancario;
-GRANT EXECUTE ON sp_Importar_UnidadesFuncionales TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_Consorcios TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_Personas TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_UF_Persona TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_PagosConsorcios TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_Proveedores TO AdminBancario;
+GRANT EXECUTE ON dbo.sp_Importar_UnidadesFuncionales TO AdminBancario;
 
 -- Permiso para "Generacion de reportes"
-GRANT EXECUTE ON sp_ReporteRecaudacionSemanal TO AdminBancario; 
-GRANT EXECUTE ON sp_ TO AdminBancario; -- Reporte 2
-GRANT EXECUTE ON sp_ TO AdminBancario; -- Reporte 3
-GRANT EXECUTE ON sp_ TO AdminBancario; -- Reporte 4
-GRANT EXECUTE ON sp_ TO AdminBancario; -- Reporte 5
-GRANT EXECUTE ON sp_ TO AdminBancario; -- Reporte 6
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionSemanal TO AdminBancario;					-- Reporte 1
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionMensualDepartamento TO AdminBancario;		-- Reporte 2
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionPorTipo TO AdminBancario;					-- Reporte 3
+GRANT EXECUTE ON dbo.sp_ReporteTopMesesIngresosGastos TO AdminBancario;				-- Reporte 4 
+GRANT EXECUTE ON dbo.sp_ReporteTop3MorososPorConsorcioPisoAnio TO AdminBancario;	-- Reporte 5
+GRANT EXECUTE ON dbo.sp_ReporteIntervaloPagosOrdinarios TO AdminBancario;			-- Reporte 6
 
 -- Permiso de lectura (SELECT)
 GRANT SELECT ON SCHEMA::dbo TO AdminBancario;
@@ -115,7 +124,7 @@ GRANT SELECT ON SCHEMA::dbo TO AdminBancario;
 -- =========================================================
 -- 
 -- ROL:Administrativo_Operativo
--- Prop髎ito: 
+-- Prop贸sito: 
 	
 --			Actualizacion de datos de UF		-> SI
 --			Importacion sw informacion bancaria -> NO
@@ -123,16 +132,16 @@ GRANT SELECT ON SCHEMA::dbo TO AdminBancario;
 -- =========================================================
 
 -- Permiso para "Actualizacion de datos de UF"
-GRANT EXECUTE ON sp_ModificarUnidadFuncional TO AdminOperativo;
+GRANT EXECUTE ON dbo.sp_ModificarUnidadFuncional TO AdminOperativo;
 
 -- Permiso para "Generacion de reportes"
 
-GRANT EXECUTE ON sp_ReporteRecaudacionSemanal TO AdminOperativo; 
-GRANT EXECUTE ON sp_ TO AdminOperativo; -- Reporte 2
-GRANT EXECUTE ON sp_ TO AdminOperativo; -- Reporte 3
-GRANT EXECUTE ON sp_ TO AdminOperativo; -- Reporte 4
-GRANT EXECUTE ON sp_ TO AdminOperativo; -- Reporte 5
-GRANT EXECUTE ON sp_ TO AdminOperativo; -- Reporte 6
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionSemanal TO AdminOperativo;				-- Reporte 1
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionMensualDepartamento TO AdminOperativo;	-- Reporte 2
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionPorTipo TO AdminOperativo;				-- Reporte 3
+GRANT EXECUTE ON dbo.sp_ReporteTopMesesIngresosGastos TO AdminOperativo;			-- Reporte 4 
+GRANT EXECUTE ON dbo.sp_ReporteTop3MorososPorConsorcioPisoAnio TO AdminOperativo;	-- Reporte 5
+GRANT EXECUTE ON dbo.sp_ReporteIntervaloPagosOrdinarios TO AdminOperativo;			-- Reporte 6
 
 -- Permiso de lectura (SELECT)
 GRANT SELECT ON SCHEMA::dbo TO AdminOperativo;
@@ -141,7 +150,7 @@ GRANT SELECT ON SCHEMA::dbo TO AdminOperativo;
 -- PERMISOS PARA Sistemas
 -- =========================================================
 -- ROL:Sistemas
--- Prop髎ito: 
+-- Prop贸sito: 
 --			Actualizacion de datos de UF		-> NO
 --			Importacion sw informacion bancaria -> NO
 --			Generacion de Reportes				-> SI
@@ -149,17 +158,15 @@ GRANT SELECT ON SCHEMA::dbo TO AdminOperativo;
 -- =========================================================
 
 -- Permiso para "Generacion de reportes"
-GRANT EXECUTE ON sp_ReporteRecaudacionSemanal TO Sistemas;
-GRANT EXECUTE ON sp_ TO Sistemas; -- Reporte 2
-GRANT EXECUTE ON sp_ TO Sistemas; -- Reporte 3
-GRANT EXECUTE ON sp_ TO Sistemas; -- Reporte 4
-GRANT EXECUTE ON sp_ TO Sistemas; -- Reporte 5
-GRANT EXECUTE ON sp_ TO Sistemas; -- Reporte 6
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionSemanal TO Sistemas;						-- Reporte 1
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionMensualDepartamento TO Sistemas;			-- Reporte 2
+GRANT EXECUTE ON dbo.sp_ReporteRecaudacionPorTipo TO Sistemas;						-- Reporte 3
+GRANT EXECUTE ON dbo.sp_ReporteTopMesesIngresosGastos TO Sistemas;					-- Reporte 4 
+GRANT EXECUTE ON dbo.sp_ReporteTop3MorososPorConsorcioPisoAnio TO Sistemas;			-- Reporte 5
+GRANT EXECUTE ON dbo.sp_ReporteIntervaloPagosOrdinarios TO Sistemas;				-- Reporte 6
 
 -- Permiso de lectura (SELECT)
 GRANT SELECT ON SCHEMA::dbo TO Sistemas;
 -- =========================================================
 
 
-PRINT 'Permisos asignados a roles.';
-GO
