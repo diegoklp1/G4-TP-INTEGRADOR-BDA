@@ -1,0 +1,61 @@
+-- 2. MODIFICACIÓN
+IF OBJECT_ID('dbo.sp_ModificarUnidadFuncional') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.sp_ModificarUnidadFuncional;
+END
+GO
+
+CREATE PROCEDURE dbo.sp_ModificarUnidadFuncional
+    @Id_Consorcio INT,        
+    @NroUF INT,                
+    @Piso VARCHAR(5),
+    @Departamento VARCHAR(2),
+    @Coeficiente DECIMAL(5, 2),
+    @M2_UF SMALLINT,
+    @Baulera BIT,
+    @Cochera BIT,
+    @M2_Baulera TINYINT,
+    @M2_Cochera TINYINT
+AS
+BEGIN
+    BEGIN TRY
+        SET NOCOUNT ON;
+
+        -- Validar existencia
+        IF NOT EXISTS (SELECT 1 FROM [unidades].[Unidad_Funcional] WHERE Id_Consorcio = @Id_Consorcio AND NroUf = @NroUF)
+            RAISERROR ('La unidad funcional Nro %d del consorcio %d no existe.', 16, 1, @NroUF, @Id_Consorcio);
+
+        -- Limpieza
+        SET @Piso = TRIM(ISNULL(@Piso, ''));
+        SET @Departamento = TRIM(ISNULL(@Departamento, ''));
+        SET @Baulera = ISNULL(@Baulera, 0);
+        SET @Cochera = ISNULL(@Cochera, 0);
+
+        -- Validaciones
+        IF @Piso = '' OR @Departamento = ''
+            RAISERROR('El Piso y el Departamento no pueden estar vacíos.', 16, 1);
+        IF @Coeficiente <= 0
+            RAISERROR('El Coeficiente debe ser mayor a 0.', 16, 1);
+        IF @M2_UF <= 0
+            RAISERROR('Los M2 deben ser mayores a 0.', 16, 1);
+
+        -- (NOTA: No se permite cambiar Id_Consorcio o NroUF porque son Clave Primaria)
+        UPDATE [unidades].[Unidad_Funcional]
+        SET
+            Piso = @Piso,
+            Departamento = @Departamento,
+            Coeficiente = @Coeficiente,
+            M2_UF = @M2_UF,
+            Baulera = @Baulera,
+            Cochera = @Cochera,
+            M2_Baulera = @M2_Baulera,
+            M2_Cochera = @M2_Cochera
+        WHERE
+            Id_Consorcio = @Id_Consorcio AND NroUf = @NroUF;
+            
+    END TRY
+    BEGIN CATCH
+        THROW;
+    END CATCH
+END
+GO
