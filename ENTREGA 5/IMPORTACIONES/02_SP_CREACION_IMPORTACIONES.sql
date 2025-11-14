@@ -1,12 +1,12 @@
-/*
-================================================================================
-SCRIPT DE CREACI�N DE STORED PROCEDURES DE IMPORTACI�N
-Base de Datos: COM5600_G04
-================================================================================
-*/
 -- =============================================================
 -- SCRIPT: 02_SP_CREACION_IMPORTACIONES.sql
--- PROPOSITO: Insertar los datos iniciales basicos en las tablas.
+-- PROPOSITO: SCRIPT DE CREACION DE STORED PROCEDURES DE 
+-- IMPORTACION
+--
+-- ES NECESARIO TENER INSTALADO "MICROSOSFT ACCES DATABASE ENGINE 
+-- 2016 REDISTRIBUITABLE" PARA OLEDB.16.
+-- PARA PODER USAR CORRECTAMENTE EL COMANDO OPENROWSET 
+-- NECESITAMOS ALGUNOS COMANDOS PREVIOS.
 
 -- Fecha de entrega:	14/11/2025
 -- Comision:			5600
@@ -21,9 +21,6 @@ Base de Datos: COM5600_G04
 USE COM5600_G04;
 GO
 
--- ES NECESARIO TENER INSTALADO "MICROSOSFT ACCES DATABASE ENGINE 2016 REDISTRIBUITABLE" PARA OLEDB.16
--- PARA PODER USAR CORRECTAMENTE EL COMANDO OPENROWSET NECESITAMOS ALGUNOS COMANDOS PREVIOS
-
 --EXEC master.dbo.sp_enum_oledb_providers;
 
 use COM5600_G04
@@ -31,7 +28,7 @@ use COM5600_G04
 EXEC sp_configure 'show advanced options', 1;
 RECONFIGURE;
 GO
--- Habilitar la importaci�n de queries (Ad Hoc)
+-- Habilitar la importacion de queries (Ad Hoc)
 EXEC sp_configure 'Ad Hoc Distributed Queries', 1;
 RECONFIGURE;
 GO
@@ -46,7 +43,7 @@ EXEC master.dbo.sp_MSset_oledb_prop
     N'DynamicParameters', 1;
 
 
-PRINT '--- Creando Stored Procedures de Importaci�n ---';
+PRINT '--- Creando Stored Procedures de Importacion ---';
 GO
 
 -- 1. sp_Importar_Consorcios
@@ -129,7 +126,7 @@ BEGIN
                 T.MetrosCuadrados = S.M2Totales_CSV,
                 T.Precio_Cochera = S.Precio_Cochera,
                 T.Precio_Baulera = S.Precio_Baulera;
-        PRINT 'Importaci�n de Consorcios (XLSX) completada.';
+        PRINT 'Importacion de Consorcios (XLSX) completada.';
 
     END TRY
     BEGIN CATCH
@@ -295,7 +292,7 @@ BEGIN
         DELETE FROM #TempPersonas WHERE DNI_Limpio IS NULL;
 
 		/*
-		-- VALIDACI�N DE DUPLICADOS EN ORIGEN
+		-- VALIDACION DE DUPLICADOS EN ORIGEN
 		DECLARE @DNIDuplicado VARCHAR(20);
 		SELECT TOP 1 @DNIDuplicado = DNI_Limpio
 		FROM #TempPersonas
@@ -305,7 +302,7 @@ BEGIN
 		-- Si encuentro un duplicado
 		IF @DNIDuplicado IS NOT NULL
 		BEGIN
-        DECLARE @ErrorMsg VARCHAR(200) = 'ERROR: El archivo CSV tiene DNIs duplicados. El DNI ' + @DNIDuplicado + ' aparece m�s de una vez. Corregir archivo de origen.'; 
+        DECLARE @ErrorMsg VARCHAR(200) = 'ERROR: El archivo CSV tiene DNIs duplicados. El DNI ' + @DNIDuplicado + ' aparece mas de una vez. Corregir archivo de origen.'; 
         THROW 50001, @ErrorMsg, 1;
         END
 		*/
@@ -428,7 +425,7 @@ BEGIN
 				ELSE 1 --propietario
 			END
         FROM #TempLink AS T
-        JOIN Persona AS P ON T.CBU_CSV = P.CBU_CVU; -- Ahora CBU_CSV est� limpio
+        JOIN Persona AS P ON T.CBU_CSV = P.CBU_CVU; -- Ahora CBU_CSV esta limpio
 
         UPDATE T
         SET T.Id_Consorcio_Limpio = C.Id_consorcio
@@ -468,7 +465,7 @@ BEGIN
             );
     END TRY
     BEGIN CATCH
-        PRINT 'ERROR: No se pudo importar el archivo de v�nculo UF-Persona.';
+        PRINT 'ERROR: No se pudo importar el archivo de vinculo UF-Persona.';
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH
@@ -482,7 +479,7 @@ GO
 -- 5. sp_Importar_PagosConsorcios
 -- Importa un CSV de pagos. Inserta en la cabecera 'Pago' y luego, usando un
 -- bucle 'WHILE' (sin cursores), aplica los montos a las expensas adeudadas
--- (l�gica de conciliaci�n) insertando en 'Detalle_Pago'.
+-- (logica de conciliacion) insertando en 'Detalle_Pago'.
 IF OBJECT_ID('sp_Importar_PagosConsorcios') IS NOT NULL
     DROP PROCEDURE sp_Importar_PagosConsorcios;
 GO
@@ -522,7 +519,7 @@ BEGIN
         ALTER TABLE #PagosTemp ADD Id_Persona INT NULL, NroUF INT NULL, Es_Asociado BIT NULL;
 
         /* 
-           Es asociado?:
+           Es asociado?
            - Primero buscamos la persona por su CBU/CVU 
            - Luego buscamos la unidad funcional relacionada a esa persona
         */
@@ -547,11 +544,11 @@ BEGIN
 		WHERE P.Id_Pago IS NULL;
 
 		DECLARE @FilasInsertadas INT = @@ROWCOUNT;
-        PRINT 'Importaci�n completada. Se insertaron ' + CAST(@FilasInsertadas AS VARCHAR) + ' nuevos pagos.';
+        PRINT 'Importacion completada. Se insertaron ' + CAST(@FilasInsertadas AS VARCHAR) + ' nuevos pagos.';
 
     END TRY
     BEGIN CATCH
-        PRINT ' Error en la importaci�n de pagos consorcios.';
+        PRINT ' Error en la importacion de pagos consorcios.';
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH;
@@ -563,7 +560,7 @@ GO
 -- 6. sp_Importar_Proveedores
 -- Lee la hoja 'Proveedores' de un Excel usando OPENROWSET.
 -- Utiliza HDR=NO e IMEX=1 (modo seguro) para leer las columnas como F1, F2...
--- Realiza ETL para limpiar t�tulos y cargar/actualizar la tabla Proovedor.
+-- Realiza ETL para limpiar titulos y cargar/actualizar la tabla Proovedor.
 IF OBJECT_ID('sp_Importar_Proveedores', 'P') IS NOT NULL
     DROP PROCEDURE sp_Importar_Proveedores;
 GO
@@ -609,13 +606,12 @@ BEGIN
         
         EXEC sp_executesql @Sql;
 
-        -- TRANSFORMACI�N DE DATOS (ETL)
+        -- TRANSFORMACION DE DATOS (ETL)
 
-        -- Borramos las filas de basura (t�tulos y encabezados)
+        -- Borramos las filas de basura (titulos y encabezados)
         DELETE FROM #TempProveedores 
         WHERE Tipo_gasto = 'Tipo gasto' OR Tipo_gasto IS NULL OR LTRIM(RTRIM(Tipo_gasto)) = '';
 
-        -- (El resto de tu l�gica ETL ahora funcionar�)
         ALTER TABLE #TempProveedores ADD Id_Consorcio INT;
 
         DELETE FROM #TempProveedores 
@@ -653,7 +649,7 @@ BEGIN
                 T.Descripcion = S.Tipo_gasto,
                 T.Cuenta = S.Cuenta;
         
-        PRINT 'Importaci�n de Proveedores (XLSX) completada.';
+        PRINT 'Importacion de Proveedores (XLSX) completada.';
 
     END TRY
     BEGIN CATCH
@@ -697,10 +693,10 @@ BEGIN
 
         IF @JsonData IS NULL
         BEGIN
-            THROW 50001, 'El archivo JSON est� vac�o o no se pudo leer.', 1;
+            THROW 50001, 'El archivo JSON esta vacio o no se pudo leer.', 1;
         END
 
-        PRINT 'Archivo JSON le�do. Procesando...';
+        PRINT 'Archivo JSON leido. Procesando...';
 
 
         CREATE TABLE #TempGastos (
@@ -788,7 +784,7 @@ BEGIN
                 T.Importe_Total = S.Importe_Total,
                 T.Descripcion = S.Descripcion_Gasto;
         
-        PRINT 'Importaci�n de Gastos JSON completada.';
+        PRINT 'Importacion de Gastos JSON completada.';
 
     END TRY
     BEGIN CATCH
