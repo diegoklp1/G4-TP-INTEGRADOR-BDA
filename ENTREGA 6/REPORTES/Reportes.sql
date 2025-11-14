@@ -21,10 +21,7 @@
 --
 -- Implementacion de formato XML.
 
-USE COM5600_G04;
-GO
-
-CREATE PROCEDURE dbo.sp_ReporteRecaudacionSemanal
+CREATE OR ALTER PROCEDURE dbo.sp_ReporteRecaudacionSemanal
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
@@ -39,10 +36,10 @@ BEGIN
             DP.Importe_Usado,
             DEU.Importe_Ordinario_Prorrateado,
             DEU.Importe_Extraordinario_Prorrateado
-        FROM dbo.Pago P
-        INNER JOIN dbo.Detalle_Pago DP ON DP.Id_Pago = P.Id_Pago
-        INNER JOIN dbo.Detalle_Expensa_UF DEU ON DEU.Id_Detalle_Expensa = DP.Id_Detalle_Expensa
-        INNER JOIN dbo.Liquidacion_Mensual LM ON LM.Id_Liquidacion_Mensual = DEU.Id_Expensa
+        FROM pagos.Pago P 
+        INNER JOIN pagos.Detalle_Pago DP ON DP.Id_Pago = P.Id_Pago 
+        INNER JOIN liquidacion.Detalle_Expensa_UF DEU ON DEU.Id_Detalle_Expensa = DP.Id_Detalle_Expensa 
+        INNER JOIN liquidacion.Liquidacion_Mensual LM ON LM.Id_Liquidacion_Mensual = DEU.Id_Expensa 
         WHERE 
             LM.Id_Consorcio = @IdConsorcio
             AND P.Fecha BETWEEN @FechaInicio AND @FechaFin
@@ -134,14 +131,14 @@ BEGIN
     ORDER BY Departamento;
 END;
 GO*/
-CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionMensualDepartamento
+CREATE OR ALTER PROCEDURE dbo.sp_ReporteRecaudacionMensualDepartamento
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
 AS
 BEGIN
     SET NOCOUNT ON;
-	
+    
     ---------------------------------------------------------------------
     -- 1. Preparar recaudación base
     ---------------------------------------------------------------------
@@ -150,10 +147,10 @@ BEGIN
             uf.Departamento,
             FORMAT(p.Fecha, 'yyyy-MM') AS Periodo,
             SUM(dp.Importe_Usado) AS Total_Recaudado
-        FROM Pago p
-        INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
-        INNER JOIN Detalle_Expensa_UF dexp ON dexp.Id_Detalle_Expensa = dp.Id_Detalle_Expensa
-        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF
+        FROM pagos.Pago p 
+        INNER JOIN pagos.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago 
+        INNER JOIN liquidacion.Detalle_Expensa_UF dexp ON dexp.Id_Detalle_Expensa = dp.Id_Detalle_Expensa 
+        INNER JOIN unidades.Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF 
         WHERE 
             p.Fecha BETWEEN @FechaInicio AND @FechaFin
             AND dexp.Id_Consorcio = @IdConsorcio
@@ -170,6 +167,14 @@ BEGIN
     FROM (
         SELECT DISTINCT Periodo FROM #Recaudacion
     ) AS x;
+
+    -- Si no hay datos, @cols será NULL. Devolvemos una tabla vacía.
+    IF @cols IS NULL
+    BEGIN
+        PRINT 'No se encontraron datos para el período seleccionado.';
+        DROP TABLE #Recaudacion;
+        RETURN;
+    END
 
     ---------------------------------------------------------------------
     -- 3. Construir SQL dinámico del PIVOT
@@ -192,6 +197,7 @@ BEGIN
     ---------------------------------------------------------------------
     EXEC sp_executesql @sql;
 
+    DROP TABLE #Recaudacion;
 END;
 GO
 
@@ -201,7 +207,7 @@ GO
 USE COM5600_G04;
 GO
 
-CREATE OR ALTER PROCEDURE sp_ReporteRecaudacionPorTipo
+CREATE OR ALTER PROCEDURE dbo.sp_ReporteRecaudacionPorTipo
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
@@ -223,9 +229,9 @@ BEGIN
             -- Calculamos el total de los componentes de esa expensa
             (dexp.Importe_Ordinario_Prorrateado + dexp.Importe_Extraordinario_Prorrateado + dexp.Interes_Por_Mora) AS TotalComponentes
             
-        FROM Pago p
-        INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
-        INNER JOIN Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa
+        FROM pagos.Pago p 
+        INNER JOIN pagos.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago 
+        INNER JOIN liquidacion.Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa 
         WHERE 
             p.Fecha BETWEEN @FechaInicio AND @FechaFin
             AND dexp.Id_Consorcio = @IdConsorcio
@@ -256,8 +262,7 @@ BEGIN
         FROM RecaudacionBase
         WHERE TotalComponentes > 0 
     )
-    -- 3. Agrupamos por periodo. Esto crea el "cuadro cruzado" que pide el PIVOT, 
-    -- pero de forma más simple y robusta.
+    -- 3. Agrupamos por periodo.
     SELECT 
         Periodo,
         ISNULL(SUM(PagoOrdinario), 0) AS [Ordinario],
@@ -292,7 +297,7 @@ BEGIN
             YEAR(go.Fecha) AS Anio,
             SUM(go.Importe_Total) AS TotalGasto,
             'Gasto Ordinario' AS Tipo
-        FROM dbo.Gasto_Ordinario go
+        FROM gastos.Gasto_Ordinario go 
         WHERE 
             go.Id_Consorcio = @IdConsorcio
             AND YEAR(go.Fecha) = @Anio
@@ -305,7 +310,7 @@ BEGIN
             YEAR(ge.Fecha) AS Anio,
             SUM(ge.Importe) AS TotalGasto,
             'Gasto Extraordinario' AS Tipo
-        FROM dbo.Gasto_Extraordinario ge
+        FROM gastos.Gasto_Extraordinario ge 
         WHERE 
             ge.Id_Consorcio = @IdConsorcio
             AND YEAR(ge.Fecha) = @Anio
@@ -334,9 +339,9 @@ BEGIN
             MONTH(p.Fecha) AS Mes,
             YEAR(p.Fecha) AS Anio,
             SUM(dp.Importe_Usado) AS TotalIngreso
-        FROM dbo.Pago p
-        INNER JOIN dbo.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
-        INNER JOIN dbo.Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa
+        FROM pagos.Pago p 
+        INNER JOIN pagos.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago 
+        INNER JOIN liquidacion.Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa 
         WHERE 
             dexp.Id_Consorcio = @IdConsorcio
             AND YEAR(p.Fecha) = @Anio
@@ -372,7 +377,6 @@ BEGIN
     FOR XML PATH('ReporteTopMesesIngresosGastos');
 END;
 GO
-
 ---Reporte 5
 --Obtenga los 3 (tres) propietarios con mayor morosidad. Presente informacion de contacto y
 --DNI de los propietarios para que la administracion los pueda contactar o remitir el tramite al
@@ -380,39 +384,44 @@ GO
 USE COM5600_G04;
 GO
 
-CREATE OR ALTER PROCEDURE sp_ReporteTop3MorososPorConsorcioPisoAnio
+CREATE OR ALTER PROCEDURE dbo.sp_ReporteTop3MorososPorConsorcioPisoAnio
     @Id_Consorcio INT,
     @Piso VARCHAR(5),
     @Anio INT
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Abrir la clave para descifrar los datos de Persona
+    OPEN SYMMETRIC KEY Key_DatosSensibles
+    DECRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
+
     ;WITH CTE_Deuda AS (
         SELECT 
             p.Id_Persona,
-            p.Apellido,
-            p.Nombre,
-            p.DNI,
-            p.Email,
-            p.Telefono,
+            -- Desciframos los datos personales
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Apellido)) + ', ' + 
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Nombre)) AS Propietario,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.DNI)) AS DNI,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Email)) AS Email,
+            CONVERT(VARCHAR, DECRYPTBYKEY(p.Telefono)) AS Telefono,
             uf.Piso,
             lm.Periodo,
             (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) AS Saldo_Pendiente
-        FROM Detalle_Expensa_UF deu
-        INNER JOIN Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa
-        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF
-        INNER JOIN Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF
-        INNER JOIN Persona p ON p.Id_Persona = up.Id_Persona
+        FROM liquidacion.Detalle_Expensa_UF deu 
+        INNER JOIN liquidacion.Liquidacion_Mensual lm ON lm.Id_Liquidacion_Mensual = deu.Id_Expensa 
+        INNER JOIN unidades.Unidad_Funcional uf ON uf.Id_Consorcio = deu.Id_Consorcio AND uf.NroUF = deu.NroUF 
+        INNER JOIN unidades.Unidad_Persona up ON up.Id_Consorcio = uf.Id_Consorcio AND up.NroUF = uf.NroUF 
+        INNER JOIN unidades.Persona p ON p.Id_Persona = up.Id_Persona 
         WHERE 
             deu.Id_Consorcio = @Id_Consorcio
             AND uf.Piso = @Piso
             AND YEAR(lm.Periodo) = @Anio
             AND up.Fecha_Fin IS NULL
-            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.00
+            AND (deu.Total_A_Pagar - deu.Pagos_Recibidos_Mes) > 0.01
     )
     SELECT TOP 3
-        Nombre,
-		Apellido,
+        Propietario,
         DNI,
         Email,
         Telefono,
@@ -420,9 +429,11 @@ BEGIN
         SUM(Saldo_Pendiente) AS DeudaTotalAcumulada,
         COUNT(DISTINCT Periodo) AS Cant_Periodos_Adeudados
     FROM CTE_Deuda
-    GROUP BY Nombre,Apellido,DNI, Email, Telefono, Piso
+    GROUP BY Propietario, DNI, Email, Telefono, Piso
     ORDER BY DeudaTotalAcumulada DESC;
 
+    -- Cerrar la clave
+    CLOSE SYMMETRIC KEY Key_DatosSensibles;
 END;
 GO
 
@@ -432,7 +443,7 @@ GO
 USE COM5600_G04;
 GO
 
-CREATE OR ALTER PROCEDURE sp_ReporteIntervaloPagosOrdinarios
+CREATE OR ALTER PROCEDURE dbo.sp_ReporteIntervaloPagosOrdinarios
     @FechaInicio DATE,
     @FechaFin DATE,
     @IdConsorcio INT
@@ -445,10 +456,10 @@ BEGIN
             uf.NroUF,
             p.Fecha AS FechaPago,
             LEAD(p.Fecha) OVER (PARTITION BY uf.NroUF ORDER BY p.Fecha) AS FechaPagoSiguiente
-        FROM Pago p
-        INNER JOIN Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago
-        INNER JOIN Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa
-        INNER JOIN Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF
+        FROM pagos.Pago p 
+        INNER JOIN pagos.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago 
+        INNER JOIN liquidacion.Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa 
+        INNER JOIN unidades.Unidad_Funcional uf ON uf.Id_Consorcio = dexp.Id_Consorcio AND uf.NroUF = dexp.NroUF 
         WHERE 
             dexp.Importe_Ordinario_Prorrateado > 0
             AND p.Fecha BETWEEN @FechaInicio AND @FechaFin
@@ -462,7 +473,7 @@ BEGIN
     FROM PagosOrdinarios
     WHERE FechaPagoSiguiente IS NOT NULL
     GROUP BY NroUF, FechaPago, FechaPagoSiguiente
-    ORDER BY NroUF, FechaPago;;
+    ORDER BY NroUF, FechaPago;
 END;
 GO
 

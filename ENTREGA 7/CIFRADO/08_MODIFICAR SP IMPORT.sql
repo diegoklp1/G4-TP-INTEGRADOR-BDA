@@ -308,17 +308,6 @@ BEGIN
 END
 GO
 
-/*
-================================================================================
-SCRIPT DE ACTUALIZACION DE STORED PROCEDURES DE IMPORTACIÓN
-Base de Datos: COM5600_G04
--- VERSION CORREGIDA CON ESQUEMAS --
-================================================================================
-*/
-
-USE COM5600_G04;
-GO
-
 -- IMPORTAR PERSONAS ENCRIPTADO
 IF OBJECT_ID('dbo.sp_Importar_Personas', 'P') IS NOT NULL
     DROP PROCEDURE dbo.sp_Importar_Personas;
