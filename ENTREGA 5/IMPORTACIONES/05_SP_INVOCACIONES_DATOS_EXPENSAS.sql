@@ -58,13 +58,18 @@ WHERE Id_Consorcio = 1
 
 IF @IdLiquidacionMes1 IS NULL
 BEGIN
+    -- Uso de la API
+    -- 1. Declarar una variable para capturar el valor de retorno.
+    DECLARE @EsNoHabil INT;
+    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
+
+    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
+    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
 
 	PRINT 'Generando liquidación Abril 2025';
 
-	--Comentado, descomentar si se busca comparar por una fecha especifica
-	--IF dbo.EsDiaNoHabil('2025-11-24') = 1
-	IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
-	BEGIN
+    IF @EsNoHabil = 0
+    BEGIN
 		EXEC sp_Generar_Liquidacion_Mensual
 				@Id_Consorcio = 1, -- Se reemplaza variable por ID 1
 				@Anio = 2025,
@@ -73,11 +78,7 @@ BEGIN
 
 		EXEC sp_Generar_Detalle_Expensas 
 				@Id_Liquidacion_Mensual = @IdLiquidacionMes1;
-	END
-	ELSE
-	BEGIN
-		PRINT 'La fecha es día NO hábil. No se ejecuta.';
-	END
+    END
 
 END
 ELSE
@@ -163,10 +164,8 @@ IF @IdLiquidacionMes2 IS NULL
 BEGIN
 	PRINT 'Generando liquidación Mayo 2025';
 
-	--Comentado, descomentar si se busca comparar por una fecha especifica
-	--IF dbo.EsDiaNoHabil('2025-11-24') = 1
-	IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
-	BEGIN
+    IF @EsNoHabil = 0
+    BEGIN
 		EXEC sp_Generar_Liquidacion_Mensual
 				@Id_Consorcio = 1,
 				@Anio = 2025,
@@ -175,11 +174,7 @@ BEGIN
 
 		EXEC sp_Generar_Detalle_Expensas 
 				@Id_Liquidacion_Mensual = @IdLiquidacionMes2;
-	END
-	ELSE
-	BEGIN
-		PRINT 'La fecha es día NO hábil. No se ejecuta.';
-	END
+    END
 END
 ELSE
 BEGIN
@@ -206,10 +201,8 @@ IF @IdLiquidacionMes3 IS NULL
 BEGIN
 	PRINT 'Generando liquidación Junio 2025';
 
-	--Comentado, descomentar si se busca comparar por una fecha especifica
-	--IF dbo.EsDiaNoHabil('2025-11-24') = 1
-	IF dbo.EsDiaNoHabil(CONVERT(date, GETDATE())) = 1
-	BEGIN
+    IF @EsNoHabil = 0
+    BEGIN
 		EXEC sp_Generar_Liquidacion_Mensual
 				@Id_Consorcio = 1,
 				@Anio = 2025,
@@ -218,11 +211,7 @@ BEGIN
 
 		EXEC sp_Generar_Detalle_Expensas 
 				@Id_Liquidacion_Mensual = @IdLiquidacionMes3;
-	END
-	ELSE
-	BEGIN
-		PRINT 'La fecha es día NO hábil. No se ejecuta.';
-	END
+    END
 END
 ELSE
 BEGIN
