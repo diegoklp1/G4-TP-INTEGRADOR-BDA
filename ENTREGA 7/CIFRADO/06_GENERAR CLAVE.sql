@@ -18,14 +18,14 @@ BEGIN
 END
 GO
 
--- 3. Crear la Clave Simétrica
+-- 3. Crear la Clave Simetrica
 IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = 'Key_DatosSensibles')
 BEGIN
-    PRINT 'Creando Clave Simétrica...';
+    PRINT 'Creando Clave Simetrica...';
     CREATE SYMMETRIC KEY Key_DatosSensibles
     WITH ALGORITHM = AES_256
     ENCRYPTION BY CERTIFICATE Cert_Cifrado_Datos;
 END
 GO
 
-PRINT 'Jerarquía de cifrado creada exitosamente.';
+PRINT 'Jerarquia de cifrado creada exitosamente.';
