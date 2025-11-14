@@ -1,20 +1,29 @@
-/*
-================================================================================
-SCRIPT DE EJECUCIÓN DE IMPORTACIONES
-Base de Datos: COM5600_G04
+-- =============================================================
+-- SCRIPT: 04_SP_INVOCACIONES_IMPORTACIONES.sql
+-- PROPOSITO: SCRIPT DE EJECUCION DE IMPORTACIONES
+-- Base de Datos: COM5600_G04
+-- 
+-- IMPORTANTE: 
+-- 1. Ejecutar este script EN ORDEN.
+-- 2. Asegurarse de que las rutas a los archivos sean correctas.
+-- 3. Para OPENROWSET (Excel), el archivo debe estar en una carpeta con
+--    permisos para el servicio de SQL Server (ej: C:\Temp\Import\).
+-- 
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
 
-IMPORTANTE: 
-1. Ejecutar este script EN ORDEN.
-2. Asegurarse de que las rutas a los archivos sean correctas.
-3. Para OPENROWSET (Excel), el archivo debe estar en una carpeta con
-   permisos para el servicio de SQL Server (ej: C:\Temp\Import\).
-================================================================================
-*/
+-- =============================================================
 
 USE COM5600_G04;
 GO
 
-PRINT '--- Iniciando Proceso de Importación de Datos ---';
+PRINT '--- Iniciando Proceso de Importacion de Datos ---';
 GO
 
 -- NOTA: Las rutas 'D:\Diego\Downloads...' son de ejemplo.
@@ -64,21 +73,5 @@ EXEC sp_Importar_PagosConsorcios
     @RutaArchivoCSV = 'D:\Diego\Downloads\ARCHIVOS_TP_BDA\ARCHIVOS\pagos_consorcios.csv';
 GO
 
-PRINT '--- Proceso de Importación Finalizado ---';
+PRINT '--- Proceso de Importacion Finalizado ---';
 GO
-
-/*
--- Descomentar para verificar los datos importados --
-
-SELECT * FROM Consorcio;
-SELECT * FROM Unidad_Funcional;
-SELECT * FROM Persona;
-SELECT * FROM Unidad_Persona;
-SELECT * FROM Proovedor;
-SELECT * FROM Gasto_Ordinario;
-SELECT * FROM Pago;
-SELECT * FROM Detalle_Pago;
-SELECT * FROM Detalle_Expensa_UF WHERE Deuda > 0 OR Pagos_Recibidos_Mes > 0;
-SELECT * FROM Persona WHERE SaldoAFavor > 0;
-
-*/

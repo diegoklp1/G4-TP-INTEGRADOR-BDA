@@ -1,3 +1,18 @@
+-- =============================================================
+-- SCRIPT: 03_SP_CREACION_DATOS_EXPENSAS.sql
+-- PROPOSITO: STORED PROCEDURE QUE CARGA LAS TABLAS RESTANES
+-- LIQUIDACION MENSUAL, EXPENSAS, APLICACION DE PAGOS
+
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =============================================================
 USE COM5600_G04
 
 
@@ -24,11 +39,11 @@ BEGIN
         IF EXISTS (SELECT 1 FROM Liquidacion_Mensual 
                    WHERE Id_Consorcio = @Id_Consorcio AND Periodo = @Periodo)
         BEGIN
-            THROW 50001, 'La liquidación para este consorcio y período ya existe.', 1;
+            THROW 50001, 'La liquidacion para este consorcio y periodo ya existe.', 1;
             RETURN;
         END
 
-        -- 2. Calcular totales de gastos del período
+        -- 2. Calcular totales de gastos del periodo
         SELECT @TotalOrdinarios = ISNULL(SUM(Importe_Total), 0)
         FROM Gasto_Ordinario
         WHERE Id_Consorcio = @Id_Consorcio
@@ -39,7 +54,7 @@ BEGIN
         WHERE Id_Consorcio = @Id_Consorcio
           AND YEAR(Fecha) = @Anio AND MONTH(Fecha) = @Mes;
 
-        -- 3. Insertar la liquidación mensual (encabezado)
+        -- 3. Insertar la liquidacion mensual (encabezado)
         INSERT INTO Liquidacion_Mensual (
             Id_Consorcio,
             Periodo,
@@ -53,19 +68,19 @@ BEGIN
             @Id_Consorcio,
             @Periodo,
             @FechaEmision,
-            DATEADD(DAY, 10, @FechaEmision), -- 1er Vencimiento en 10 días
-            DATEADD(DAY, 20, @FechaEmision), -- 2do Vencimiento en 20 días
+            DATEADD(DAY, 10, @FechaEmision), -- 1er Vencimiento en 10 dias
+            DATEADD(DAY, 20, @FechaEmision), -- 2do Vencimiento en 20 dias
             @TotalOrdinarios,
             @TotalExtraordinarios
         );
 
         SET @Id_Liquidacion_Generada = SCOPE_IDENTITY();
         
-        PRINT 'Liquidación mensual generada exitosamente con ID: ' + CAST(@Id_Liquidacion_Generada AS VARCHAR);
+        PRINT 'Liquidacion mensual generada exitosamente con ID: ' + CAST(@Id_Liquidacion_Generada AS VARCHAR);
 
     END TRY
     BEGIN CATCH
-        PRINT 'ERROR: No se pudo generar la liquidación mensual.';
+        PRINT 'ERROR: No se pudo generar la liquidacion mensual.';
         PRINT ERROR_MESSAGE();
         THROW;
     END CATCH
@@ -92,10 +107,10 @@ BEGIN
     DECLARE @PrecioCochera DECIMAL(9,2), @PrecioBaulera DECIMAL(9,2);
 
     BEGIN TRY
-        -- 1. Obtener datos de la liquidación "padre" y del consorcio
+        -- 1. Obtener datos de la liquidacion "padre" y del consorcio
         SELECT 
             @Id_Consorcio = L.Id_Consorcio,
-            -- Importante: Convertimos el PERIODO (datetime) a DATE aquí
+            -- Importante: Convertimos el PERIODO (datetime) a DATE aqui
             @Periodo = CAST(L.Periodo AS DATE),
             @TotalOrd = L.Total_Gasto_Ordinarios,
             @TotalExt = L.Total_Gasto_Extraordinarios,
@@ -107,7 +122,7 @@ BEGIN
 
         IF @Id_Consorcio IS NULL
         BEGIN
-            THROW 50001, 'No se encontró la liquidación mensual especificada.', 1;
+            THROW 50001, 'No se encontro la liquidacion mensual especificada.', 1;
             RETURN;
         END
 
@@ -137,7 +152,7 @@ BEGIN
             (@TotalExt * UF.Coeficiente / 100) AS Importe_Extraordinario_Prorrateado,
             
             (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0)) + -- Deuda
-            (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0) * 0.05) + -- Interés
+            (ISNULL(PREV_DET.Total_A_Pagar - PREV_DET.Pagos_Recibidos_Mes, 0) * 0.05) + -- Interes
             (@TotalOrd * UF.Coeficiente / 100) + 
             (CASE WHEN UF.Cochera = 1 THEN @PrecioCochera ELSE 0 END) +
             (CASE WHEN UF.Baulera = 1 THEN @PrecioBaulera ELSE 0 END) +
@@ -146,21 +161,20 @@ BEGIN
 
         FROM Unidad_Funcional AS UF
         
-        -- Buscamos la liquidación del mes anterior
+        -- Buscamos la liquidacion del mes anterior
         LEFT JOIN Liquidacion_Mensual AS PREV_LIQ 
             ON PREV_LIQ.Id_Consorcio = UF.Id_Consorcio
-            -- *** LA CORRECCIÓN ESTÁ AQUÍ ***
             -- Comparamos DATE vs DATE, en lugar de DATETIME vs DATE
             AND CAST(PREV_LIQ.Periodo AS DATE) = DATEADD(MONTH, -1, @Periodo)
 
-        -- Buscamos el detalle de expensa de esa liquidación anterior
+        -- Buscamos el detalle de expensa de esa liquidacion anterior
         LEFT JOIN Detalle_Expensa_UF AS PREV_DET
             ON PREV_DET.Id_Expensa = PREV_LIQ.Id_Liquidacion_Mensual
             AND PREV_DET.NroUf = UF.NroUf
 
         WHERE UF.Id_Consorcio = @Id_Consorcio;
 
-        PRINT 'Detalles de expensas (CORREGIDOS) generados para la liquidación ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
+        PRINT 'Detalles de expensas (CORREGIDOS) generados para la liquidacion ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
 
     END TRY
     BEGIN CATCH
@@ -193,10 +207,10 @@ BEGIN
         UP.NroUf
     INTO #PagosAProcesar
     FROM Pago AS P
-    -- Cruce para encontrar la UF dueña del CBU/CVU
+    -- Cruce para encontrar la UF duenia del CBU/CVU
     JOIN Persona AS PER ON P.Cuenta_Origen = PER.Cbu_Cvu
     JOIN Unidad_Persona AS UP ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
-    -- Condición: El pago está asociado Y NO está procesado
+    -- Condicion: El pago esta asociado Y NO esta procesado
     WHERE P.Es_Pago_Asociado = 1
       AND P.Procesado = 0; -- <-- ESTA ES LA CLAVE NUEVA
 
@@ -219,28 +233,28 @@ BEGIN
         SET @MontoRestantePago = @ImportePago;
         PRINT 'Procesando Pago ID: ' + CAST(@IdPago AS VARCHAR) + ' por ' + CAST(@ImportePago AS VARCHAR) + ' para UF: ' + @NroUF;
 
-        -- 3. Loop interno: Aplicar el pago a las deudas (expensas) más antiguas primero
+        -- 3. Loop interno: Aplicar el pago a las deudas (expensas) mas antiguas primero
         WHILE @MontoRestantePago > 0
         BEGIN
             DECLARE @IdDetalleExpensa INT = NULL;
             DECLARE @MontoAdeudado DECIMAL(9,2) = 0;
 
-            -- Buscamos la expensa más antigua con saldo deudor
+            -- Buscamos la expensa mas antigua con saldo deudor
             SELECT TOP 1
                 @IdDetalleExpensa = DE.Id_Detalle_Expensa,
-                -- La deuda es el total MENOS lo que ya se haya pagado (quizás de un pago anterior)
+                -- La deuda es el total MENOS lo que ya se haya pagado (quizas de un pago anterior)
                 @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes)
             FROM Detalle_Expensa_UF AS DE
             JOIN Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
             WHERE DE.Id_Consorcio = @IdConsorcio
               AND DE.NroUf = @NroUF
               AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01 -- Umbral de deuda
-            ORDER BY LM.Periodo ASC; -- DEUDA MÁS ANTIGUA
+            ORDER BY LM.Periodo ASC; -- DEUDA MAS ANTIGUA
 
-            -- Si no hay más deuda para esta UF, salimos del loop interno
+            -- Si no hay mas deuda para esta UF, salimos del loop interno
             IF @IdDetalleExpensa IS NULL
             BEGIN
-                PRINT 'No hay más deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
+                PRINT 'No hay mas deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
                 BREAK; -- Rompe el WHILE interno
             END
 
@@ -267,11 +281,11 @@ BEGIN
                 PRINT ERROR_MESSAGE();
                 BREAK; 
             END CATCH
-        END -- Fin loop interno (aplicación de un pago)
+        END -- Fin loop interno (aplicacion de un pago)
 
         -- 5. MARCAMOS EL PAGO COMO PROCESADO
-        -- Lo hacemos fuera del loop interno, una vez que el pago se consumió
-        -- o ya no hay más deuda donde aplicarlo.
+        -- Lo hacemos fuera del loop interno, una vez que el pago se consumio
+        -- o ya no hay mas deuda donde aplicarlo.
         UPDATE Pago
         SET Procesado = 1
         WHERE Id_Pago = @IdPago;
@@ -285,7 +299,7 @@ BEGIN
     DEALLOCATE PagosCursor;
 
     DROP TABLE #PagosAProcesar;
-    PRINT 'Proceso de imputación de pagos (CORREGIDO) finalizado.';
+    PRINT 'Proceso de imputacion de pagos (CORREGIDO) finalizado.';
     SET NOCOUNT OFF;
 END
 GO

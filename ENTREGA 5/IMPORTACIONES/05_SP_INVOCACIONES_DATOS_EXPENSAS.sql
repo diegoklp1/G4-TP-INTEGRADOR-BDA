@@ -1,3 +1,25 @@
+-- =============================================================
+-- SCRIPT: 05_SP_INVOCACIONES_DATOS_EXPENSAS.sql
+-- PROPOSITO: SCRIPT DE EJECUCION DE IMPORTACIONES
+-- Base de Datos: COM5600_G04
+-- 
+-- IMPORTANTE: 
+-- 1. Ejecutar este script EN ORDEN.
+-- 2. Asegurarse de que las rutas a los archivos sean correctas.
+-- 3. Para OPENROWSET (Excel), el archivo debe estar en una carpeta con
+--    permisos para el servicio de SQL Server (ej: C:\Temp\Import\).
+-- 
+-- Fecha de entrega:	14/11/2025
+-- Comision:			5600
+-- Grupo:				04
+-- Materia:				Bases de datos aplicada
+-- Integrantes:
+-- - Llanos Franco , DNI: 43629080
+-- - Varela Daniel , DNI: 40388978
+-- - Llanos Diego  , DNI: 45748387
+
+-- =============================================================
+
 USE COM5600_G04;
 GO
 
@@ -24,7 +46,7 @@ USE COM5600_G04;
 GO
 
 PRINT '--- INICIO DEL JUEGO DE PRUEBA (ACTUALIZADO) ---';
-PRINT 'Asegúrese de haber cargado los datos de "Setup"...';
+PRINT 'Asegurese de haber cargado los datos de "Setup"...';
 RAISERROR ('Presione "Run" de nuevo para continuar...', 0, 1) WITH NOWAIT;
 WAITFOR DELAY '00:00:05';
 GO
@@ -32,7 +54,7 @@ GO
 ----------------------------------------------------------------------
 -- PRUEBAS MES 1 (Abril 2025) - Lote Unificado
 ----------------------------------------------------------------------
-PRINT '--- PRUEBAS 1 y 2: Generando Liquidación y Detalles (Mes 1: Abril) ---';
+PRINT '--- PRUEBAS 1 y 2: Generando Liquidacion y Detalles (Mes 1: Abril) ---';
 
 DECLARE @IdLiquidacionMes1 INT;
 DECLARE @IdConsorcioPrueba INT = 1;
@@ -44,20 +66,20 @@ BEGIN TRY
         @Mes = 4,
         @Id_Liquidacion_Generada = @IdLiquidacionMes1 OUTPUT;
 
-    PRINT 'Liquidación Mes 1 (Abril) Generada con ID: ' + CAST(@IdLiquidacionMes1 AS VARCHAR);
+    PRINT 'Liquidacion Mes 1 (Abril) Generada con ID: ' + CAST(@IdLiquidacionMes1 AS VARCHAR);
     SELECT * FROM Liquidacion_Mensual WHERE Id_Liquidacion_Mensual = @IdLiquidacionMes1;
 
     IF @IdLiquidacionMes1 IS NULL OR @IdLiquidacionMes1 <= 0
     BEGIN
-        THROW 50002, 'sp_Generar_Liquidacion_Mensual no devolvió un ID válido.', 1;
+        THROW 50002, 'sp_Generar_Liquidacion_Mensual no devolvio un ID valido.', 1;
     END
 
-    PRINT 'Generando Detalles para Liquidación ID: ' + CAST(@IdLiquidacionMes1 AS VARCHAR);
+    PRINT 'Generando Detalles para Liquidacion ID: ' + CAST(@IdLiquidacionMes1 AS VARCHAR);
     EXEC sp_Generar_Detalle_Expensas @Id_Liquidacion_Mensual = @IdLiquidacionMes1;
 
     PRINT 'Detalles generados para Mes 1:';
     SELECT * FROM Detalle_Expensa_UF WHERE Id_Expensa = @IdLiquidacionMes1;
-    PRINT '/* VERIFICAR: Que Saldo_Anterior sea 0 (primer mes) y Total_A_Pagar esté calculado. */';
+    PRINT '/* VERIFICAR: Que Saldo_Anterior sea 0 (primer mes) y Total_A_Pagar este calculado. */';
 
 END TRY
 BEGIN CATCH
@@ -71,11 +93,10 @@ WAITFOR DELAY '00:00:05';
 GO
 
 ----------------------------------------------------------------------
--- PRUEBA 3: Procesando Pagos MÚLTIPLES VECES (Mes 1)
+-- PRUEBA 3: Procesando Pagos MULTIPLES VECES (Mes 1)
 ----------------------------------------------------------------------
 PRINT '--- PRUEBA 3.1: Procesando Pagos (Tanda 1) ---';
 
--- *** LA CORRECCIÓN ESTÁ AQUÍ ***
 DECLARE @IdLiquidacionMes1 INT = (
     SELECT Id_Liquidacion_Mensual FROM Liquidacion_Mensual 
     WHERE CAST(Periodo AS DATE) = '2025-04-01' AND Id_Consorcio = 1
@@ -83,7 +104,7 @@ DECLARE @IdLiquidacionMes1 INT = (
 
 IF @IdLiquidacionMes1 IS NULL
 BEGIN
-    RAISERROR('No se encontró la liquidación del Mes 1. Deteniendo prueba de pagos.', 16, 1);
+    RAISERROR('No se encontro la liquidacion del Mes 1. Deteniendo prueba de pagos.', 16, 1);
 END
 ELSE
 BEGIN
@@ -94,7 +115,7 @@ BEGIN
 
     EXEC sp_Procesar_Pagos;
 
-    PRINT 'Estado DESPUÉS de procesar pagos (Tanda 1):';
+    PRINT 'Estado DESPUES de procesar pagos (Tanda 1):';
     SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar 
     FROM Detalle_Expensa_UF 
     WHERE Id_Expensa = @IdLiquidacionMes1;
@@ -102,16 +123,15 @@ BEGIN
 END
 GO
 
-RAISERROR ('--- Pausa (5 seg). Siguiente prueba: Simulación Tanda 2 ---', 0, 1) WITH NOWAIT;
+RAISERROR ('--- Pausa (5 seg). Siguiente prueba: Simulacion Tanda 2 ---', 0, 1) WITH NOWAIT;
 WAITFOR DELAY '00:00:05';
 GO
 
 ----------------------------------------------------------------------
--- PRUEBA 3.2: Simulación de NUEVA importación y procesamiento (Tanda 2)
+-- PRUEBA 3.2: Simulacion de NUEVA importacion y procesamiento (Tanda 2)
 ----------------------------------------------------------------------
-PRINT '--- PRUEBA 3.2: Simulación de NUEVA importación y procesamiento (Tanda 2) ---';
+PRINT '--- PRUEBA 3.2: Simulacion de NUEVA importacion y procesamiento (Tanda 2) ---';
 
--- *** LA CORRECCIÓN ESTÁ AQUÍ ***
 DECLARE @IdLiquidacionMes1 INT = (
     SELECT Id_Liquidacion_Mensual FROM Liquidacion_Mensual 
     WHERE CAST(Periodo AS DATE) = '2025-04-01' AND Id_Consorcio = 1
@@ -119,7 +139,7 @@ DECLARE @IdLiquidacionMes1 INT = (
 
 IF @IdLiquidacionMes1 IS NULL
 BEGIN
-    RAISERROR('No se encontró la liquidación del Mes 1. Deteniendo prueba de pagos Tanda 2.', 16, 1);
+    RAISERROR('No se encontro la liquidacion del Mes 1. Deteniendo prueba de pagos Tanda 2.', 16, 1);
 END
 ELSE
 BEGIN
@@ -128,26 +148,26 @@ BEGIN
         BEGIN
             INSERT INTO Pago (Id_Pago, Id_Forma_De_Pago, Fecha, Cuenta_Origen, Importe, Es_Pago_Asociado, Procesado)
             VALUES (99999, 1, '2025-04-10', '1112192065530490000000', 500.00, 1, 0); -- Asumimos CBU de UF 10
-            PRINT 'Nuevo pago (Tanda 2) insertado para simulación.';
+            PRINT 'Nuevo pago (Tanda 2) insertado para simulacion.';
         END
         ELSE
         BEGIN
-            PRINT 'El pago de simulación (99999) ya existe. Reseteando a Procesado = 0.';
+            PRINT 'El pago de simulacion (99999) ya existe. Reseteando a Procesado = 0.';
             UPDATE Pago SET Procesado = 0 WHERE Id_Pago = 99999; 
         END
     END TRY
     BEGIN CATCH
-        PRINT 'Error insertando pago de simulación (99999).';
+        PRINT 'Error insertando pago de simulacion (99999).';
         PRINT ERROR_MESSAGE();
     END CATCH
 
     EXEC sp_Procesar_Pagos;
 
-    PRINT 'Estado FINAL después de procesar pagos (Tanda 2):';
+    PRINT 'Estado FINAL despues de procesar pagos (Tanda 2):';
     SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar 
     FROM Detalle_Expensa_UF 
-    WHERE Id_Expensa = @IdLiquidacionMes1 AND NroUf = '10'; -- Filtramos solo la UF que pagó
-    PRINT '/* VERIFICACIÓN CLAVE (Tanda 2): Que [Pagos_Recibidos_Mes] sea la SUMA de (Tanda 1 + Tanda 2). */';
+    WHERE Id_Expensa = @IdLiquidacionMes1 AND NroUf = '10'; -- Filtramos solo la UF que pago
+    PRINT '/* VERIFICACION CLAVE (Tanda 2): Que [Pagos_Recibidos_Mes] sea la SUMA de (Tanda 1 + Tanda 2). */';
 END
 GO
 
@@ -158,7 +178,7 @@ GO
 ----------------------------------------------------------------------
 -- PRUEBAS MES 2 (Mayo 2025) - Prueba de Arrastre de Deuda
 ----------------------------------------------------------------------
-PRINT '--- PRUEBA 4 y 5: Generando Liquidación y Detalles (Mes 2: Mayo) ---';
+PRINT '--- PRUEBA 4 y 5: Generando Liquidacion y Detalles (Mes 2: Mayo) ---';
 
 DECLARE @IdLiquidacionMes2 INT;
 DECLARE @IdConsorcioPrueba INT = 1;
@@ -170,21 +190,21 @@ BEGIN TRY
         @Mes = 5,
         @Id_Liquidacion_Generada = @IdLiquidacionMes2 OUTPUT;
 
-    PRINT 'Liquidación Mes 2 (Mayo) Generada con ID: ' + CAST(@IdLiquidacionMes2 AS VARCHAR);
+    PRINT 'Liquidacion Mes 2 (Mayo) Generada con ID: ' + CAST(@IdLiquidacionMes2 AS VARCHAR);
 
     IF @IdLiquidacionMes2 IS NULL OR @IdLiquidacionMes2 <= 0
     BEGIN
-        THROW 50003, 'sp_Generar_Liquidacion_Mensual no devolvió un ID válido para Mes 2.', 1;
+        THROW 50003, 'sp_Generar_Liquidacion_Mensual no devolvio un ID valido para Mes 2.', 1;
     END
 
-    PRINT '--- ESTA ES LA PRUEBA MÁS IMPORTANTE (SALDO ANTERIOR CORREGIDO) ---';
+    PRINT '--- ESTA ES LA PRUEBA MAS IMPORTANTE (SALDO ANTERIOR CORREGIDO) ---';
     EXEC sp_Generar_Detalle_Expensas @Id_Liquidacion_Mensual = @IdLiquidacionMes2;
 
     PRINT 'Detalles generados para Mes 2:';
     SELECT * FROM Detalle_Expensa_UF WHERE Id_Expensa = @IdLiquidacionMes2;
-    PRINT '/* VERIFICACIÓN CLAVE (CORREGIDA): 
-        1. Para la UF que NO pagó: [Saldo_Anterior] debe ser el [Total_A_Pagar] de Abril.
-        2. Para la UF que SÍ pagó: [Saldo_Anterior] debe ser ([Total_A_Pagar] Abril - [Pagos_Recibidos_Mes] Abril).
+    PRINT '/* VERIFICACION CLAVE (CORREGIDA): 
+        1. Para la UF que NO pago: [Saldo_Anterior] debe ser el [Total_A_Pagar] de Abril.
+        2. Para la UF que SI pago: [Saldo_Anterior] debe ser ([Total_A_Pagar] Abril - [Pagos_Recibidos_Mes] Abril).
     */';
 
 END TRY

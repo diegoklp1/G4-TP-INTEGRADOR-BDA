@@ -291,22 +291,6 @@ BEGIN
         UPDATE #TempPersonas SET DNI_Limpio = NULL WHERE ISNUMERIC(DNI_Limpio) = 0;
         DELETE FROM #TempPersonas WHERE DNI_Limpio IS NULL;
 
-		/*
-		-- VALIDACION DE DUPLICADOS EN ORIGEN
-		DECLARE @DNIDuplicado VARCHAR(20);
-		SELECT TOP 1 @DNIDuplicado = DNI_Limpio
-		FROM #TempPersonas
-		GROUP BY DNI_Limpio
-		HAVING COUNT(*) > 1;
-
-		-- Si encuentro un duplicado
-		IF @DNIDuplicado IS NOT NULL
-		BEGIN
-        DECLARE @ErrorMsg VARCHAR(200) = 'ERROR: El archivo CSV tiene DNIs duplicados. El DNI ' + @DNIDuplicado + ' aparece mas de una vez. Corregir archivo de origen.'; 
-        THROW 50001, @ErrorMsg, 1;
-        END
-		*/
-
         -- MERGE
         MERGE INTO Persona AS T -- Target
         USING (
