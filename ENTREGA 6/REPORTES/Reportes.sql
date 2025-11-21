@@ -182,15 +182,13 @@ BEGIN
     ;WITH RecaudacionBase AS (
         -- 1. Obtenemos todos los pagos y los componentes de la expensa a la que se aplicaron
         SELECT 
-            FORMAT(p.Fecha, 'yyyy-MM') AS Periodo,
+            CONVERT(VARCHAR(7), p.Fecha, 120) AS Periodo, -- yyyy-MM
             dp.Importe_Usado,
             dexp.Importe_Ordinario_Prorrateado,
             dexp.Importe_Extraordinario_Prorrateado,
-            dexp.Interes_Por_Mora,
             
             -- Calculamos el total de los componentes de esa expensa
-            (dexp.Importe_Ordinario_Prorrateado + dexp.Importe_Extraordinario_Prorrateado + dexp.Interes_Por_Mora) AS TotalComponentes
-            
+            (ISNULL(dexp.Importe_Ordinario_Prorrateado,0) + ISNULL(dexp.Importe_Extraordinario_Prorrateado,0)) AS TotalComponentes
         FROM pagos.Pago p 
         INNER JOIN pagos.Detalle_Pago dp ON dp.Id_Pago = p.Id_Pago 
         INNER JOIN liquidacion.Detalle_Expensa_UF dexp ON dp.Id_Detalle_Expensa = dexp.Id_Detalle_Expensa 
@@ -206,22 +204,29 @@ BEGIN
 			TotalComponentes,
             
             -- Pago Ordinario
-            CASE 
-                WHEN TotalComponentes = 0 THEN 0
-                ELSE Importe_Usado * (Importe_Ordinario_Prorrateado / TotalComponentes)
-            END AS PagoOrdinario,
-            
-            -- Pago Extraordinario
-            CASE 
-                WHEN TotalComponentes = 0 THEN 0
-                ELSE Importe_Usado * (Importe_Extraordinario_Prorrateado / TotalComponentes)
-            END AS PagoExtraordinario,
-            
-            -- Pago Mora
-            CASE 
-                WHEN TotalComponentes = 0 THEN 0
-                ELSE Importe_Usado * (Interes_Por_Mora / TotalComponentes)
-            END AS PagoMora
+			CASE
+				WHEN Importe_Ordinario_Prorrateado > 0 AND Importe_Extraordinario_Prorrateado = 0
+					THEN Importe_Usado                                   -- Solo ordinario → 100%
+				WHEN Importe_Ordinario_Prorrateado = 0 AND Importe_Extraordinario_Prorrateado > 0
+					THEN 0                                               -- Solo extraordinario → ordinario = 0
+				WHEN TotalComponentes = 0
+					THEN 0
+				ELSE
+					Importe_Usado * (Importe_Ordinario_Prorrateado / TotalComponentes)
+			END AS PagoOrdinario,
+
+			-- Pago Extraordinario
+			CASE
+				WHEN Importe_Ordinario_Prorrateado = 0 AND Importe_Extraordinario_Prorrateado > 0
+					THEN Importe_Usado                                   -- Solo extraordinario → 100%
+				WHEN Importe_Ordinario_Prorrateado > 0 AND Importe_Extraordinario_Prorrateado = 0
+					THEN 0                                               -- Solo ordinario → extraordinario = 0
+				WHEN TotalComponentes = 0
+					THEN 0
+				ELSE
+					Importe_Usado * (Importe_Extraordinario_Prorrateado / TotalComponentes)
+			END AS PagoExtraordinario
+
 			
             
         FROM RecaudacionBase
@@ -230,11 +235,9 @@ BEGIN
     -- 3. Agrupamos por periodo.
     SELECT 
         Periodo,
-        ISNULL(SUM(Importe_Usado), 0) AS [Importe],
-        ISNULL(SUM(TotalComponentes), 0) AS [Total],
-        ISNULL(SUM(PagoOrdinario), 0) AS [Ordinario],
-        ISNULL(SUM(PagoExtraordinario), 0) AS [Extraordinario],
-        ISNULL(SUM(PagoMora), 0) AS [Mora]       
+		CAST(ISNULL(SUM(PagoOrdinario), 0) AS DECIMAL(18,2)) AS [Ordinario],
+		CAST(ISNULL(SUM(PagoExtraordinario), 0) AS DECIMAL(18,2)) AS [Extraordinario],
+        CAST(ISNULL(SUM(Importe_Usado), 0) AS DECIMAL(18,2)) AS [Importe]
     FROM PagosProporcionales
     GROUP BY Periodo
     ORDER BY Periodo;
