@@ -89,8 +89,6 @@ END
 GO
 
 
-
-
 -- GENERACION DE EXPENSAS
 IF OBJECT_ID('dbo.sp_Generar_Detalle_Expensas', 'P') IS NOT NULL
     DROP PROCEDURE dbo.sp_Generar_Detalle_Expensas;
@@ -173,7 +171,7 @@ BEGIN
 
         WHERE UF.Id_Consorcio = @Id_Consorcio;
 
-        PRINT 'Detalles de expensas (CORREGIDOS) generados para la liquidacion ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
+        PRINT 'Detalles de expensas generados para la liquidacion ID: ' + CAST(@Id_Liquidacion_Mensual AS VARCHAR);
 
     END TRY
     BEGIN CATCH
@@ -187,128 +185,192 @@ END
 GO
 
 
+IF OBJECT_ID('dbo.sp_Recalcular_Saldos_UF', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_Recalcular_Saldos_UF;
+GO
+CREATE PROCEDURE dbo.sp_Recalcular_Saldos_UF
+    @Id_Consorcio INT,
+    @NroUF VARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Preparar datos en orden cronologico
+    ;WITH DatosBase AS (
+        SELECT 
+            D.Id_Detalle_Expensa,
+            (D.Importe_Ordinario_Prorrateado + D.Importe_Extraordinario_Prorrateado) AS GastosPuros,
+            D.Pagos_Recibidos_Mes,
+            D.Total_A_Pagar,
+            D.Saldo_Anterior,
+            L.Periodo,
+            ROW_NUMBER() OVER (ORDER BY L.Periodo ASC) AS NumFila
+        FROM liquidacion.Detalle_Expensa_UF D
+        JOIN liquidacion.Liquidacion_Mensual L ON D.Id_Expensa = L.Id_Liquidacion_Mensual
+        WHERE D.Id_Consorcio = @Id_Consorcio AND D.NroUf = @NroUF
+    ),
+    CalculoRecursivo AS (
+		--TOMAR EL SALDO ACUMULADO INICIAL (primer mes)
+        SELECT 
+            Id_Detalle_Expensa,
+            NumFila,
+            GastosPuros,
+            Pagos_Recibidos_Mes,
+            -- Valores originales para el primer mes
+            CAST(Saldo_Anterior AS DECIMAL(12,2)) AS Nuevo_Saldo_Anterior,
+            CAST(0 AS DECIMAL(12,2)) AS Nuevo_Interes, 
+            CAST(Total_A_Pagar AS DECIMAL(12,2)) AS Nuevo_Total_A_Pagar,
+            -- Calculamos el Saldo Acumulado que pasará al mes siguiente
+            CAST((Total_A_Pagar - Pagos_Recibidos_Mes) AS DECIMAL(12,2)) AS Saldo_Acumulado_Pasante
+        FROM DatosBase
+        WHERE NumFila = 1
+
+        UNION ALL
+		--Unir fila actual con la anterior
+
+        SELECT 
+            Curr.Id_Detalle_Expensa,
+            Curr.NumFila,
+            Curr.GastosPuros,
+            Curr.Pagos_Recibidos_Mes,
+            -- El Saldo Anterior es el acumulado del mes previo
+            Prev.Saldo_Acumulado_Pasante, 
+            -- Calculo Interés
+            CAST(CASE WHEN Prev.Saldo_Acumulado_Pasante > 0 
+                 THEN Prev.Saldo_Acumulado_Pasante * 0.05 
+                 ELSE 0 
+            END AS DECIMAL(12,2)),
+            -- Nuevo total para pagar = SaldoAnt + Interes + Gastos
+            CAST((Prev.Saldo_Acumulado_Pasante + 
+                  (CASE WHEN Prev.Saldo_Acumulado_Pasante > 0 THEN Prev.Saldo_Acumulado_Pasante * 0.05 ELSE 0 END) + 
+                  Curr.GastosPuros) AS DECIMAL(12,2)),
+            -- Nuevo Acumulado para el siguiente mes = NuevoTotal - Pagos
+            CAST(((Prev.Saldo_Acumulado_Pasante + 
+                   (CASE WHEN Prev.Saldo_Acumulado_Pasante > 0 THEN Prev.Saldo_Acumulado_Pasante * 0.05 ELSE 0 END) + 
+                   Curr.GastosPuros) - Curr.Pagos_Recibidos_Mes) AS DECIMAL(12,2))
+        FROM DatosBase Curr
+        INNER JOIN CalculoRecursivo Prev ON Curr.NumFila = Prev.NumFila + 1
+    )
+    -- Actualización
+    UPDATE T
+    SET 
+        T.Saldo_Anterior   = C.Nuevo_Saldo_Anterior,
+        T.Interes_Por_Mora = C.Nuevo_Interes,
+        T.Total_A_Pagar    = C.Nuevo_Total_A_Pagar,
+        T.Deuda            = CASE WHEN C.Nuevo_Saldo_Anterior > 0 THEN C.Nuevo_Saldo_Anterior ELSE 0 END
+    FROM liquidacion.Detalle_Expensa_UF T
+    INNER JOIN CalculoRecursivo C ON T.Id_Detalle_Expensa = C.Id_Detalle_Expensa
+    WHERE C.NumFila > 1 -- Lo del primer mes no no se toca
+    OPTION (MAXRECURSION 0);
+
+END
+GO
 -- APLICACION DE PAGOS
 IF OBJECT_ID('dbo.sp_Procesar_Pagos', 'P') IS NOT NULL
     DROP PROCEDURE dbo.sp_Procesar_Pagos;
 GO
 CREATE PROCEDURE dbo.sp_Procesar_Pagos
+    @FechaCorte DATE
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
-        SELECT 
-            P.Id_Pago,
-            P.Importe,
-            P.Cuenta_Origen,
-            UP.Id_Consorcio,
-            UP.NroUf,
-            P.Fecha AS Fecha_Pago,
-            ROW_NUMBER() OVER (ORDER BY P.Fecha, P.Id_Pago) AS RowId
-        INTO #PagosAProcesar
-        FROM pagos.Pago AS P
-        JOIN unidades.Persona AS PER 
-            ON P.Cuenta_Origen = PER.Cbu_Cvu
-        JOIN unidades.Unidad_Persona AS UP 
-            ON PER.Id_Persona = UP.Id_Persona AND UP.Fecha_Fin IS NULL
-        WHERE P.Es_Pago_Asociado = 1
-          AND P.Procesado = 0;
-
-        DECLARE @RowCount INT = @@ROWCOUNT;
-        PRINT 'Pagos nuevos a procesar encontrados: ' + CAST(@RowCount AS VARCHAR);
-
-        DECLARE @i INT = 1;
-        DECLARE @IdPago INT, @ImportePago DECIMAL(9,2), @IdConsorcio INT, @NroUF VARCHAR(10);
-        DECLARE @MontoRestantePago DECIMAL(9,2);
-        DECLARE @FechaPago DATE;
-
-        WHILE @i <= @RowCount
-        BEGIN
+        -- Identificar pagos a procesar (para la primer UF activa por persona)
+        WITH Pagos_CTE AS (
             SELECT 
-                @IdPago = Id_Pago,
-                @ImportePago = Importe,
-                @IdConsorcio = Id_Consorcio,
-                @NroUF = NroUf,
-                @FechaPago = Fecha_Pago
-            FROM #PagosAProcesar
-            WHERE RowId = @i;
-            
-            
-            SET @MontoRestantePago = @ImportePago;
-            --PRINT 'Procesando Pago ID: ' + CAST(@IdPago AS VARCHAR) + ' por ' + CAST(@ImportePago AS VARCHAR) + ' para UF: ' + @NroUF;
+                P.Id_Pago,
+                P.Importe,
+                P.Fecha,
+                UP.Id_Consorcio,
+                UP.NroUf,
+                ROW_NUMBER() OVER (PARTITION BY P.Id_Pago ORDER BY UP.Id_Consorcio, UP.NroUf) as rn
+            FROM pagos.Pago P
+            JOIN unidades.Persona PER ON P.Cuenta_Origen = PER.Cbu_Cvu
+            JOIN unidades.Unidad_Persona UP ON PER.Id_Persona = UP.Id_Persona 
+            WHERE P.Es_Pago_Asociado = 1 AND P.Procesado = 0 
+              AND P.Fecha <= @FechaCorte AND UP.Fecha_Fin IS NULL
+        )
+        SELECT Id_Pago, Importe, Fecha, Id_Consorcio, NroUf 
+        INTO #PagosPendientes FROM Pagos_CTE WHERE rn = 1;
 
-            -- 3. Loop interno: Aplicar el pago a las deudas más antiguas
-            WHILE @MontoRestantePago > 0
+        DECLARE @TotalPagos INT = (SELECT COUNT(*) FROM #PagosPendientes);
+        PRINT 'Procesando ' + CAST(@TotalPagos AS VARCHAR) + ' pagos.';
+
+        -- Procesamiento secuencial para la tabla temporal
+        DECLARE @IdPago INT, @MontoRestante DECIMAL(12,2), @IdConsorcio INT, @NroUF VARCHAR(10);
+
+        WHILE EXISTS (SELECT 1 FROM #PagosPendientes)
+        BEGIN
+            SELECT TOP 1 
+                @IdPago = Id_Pago, 
+                @MontoRestante = Importe, 
+                @IdConsorcio = Id_Consorcio, 
+                @NroUF = NroUf 
+            FROM #PagosPendientes;
+
+            -- Imputar deuda mientras quede saldo
+            WHILE @MontoRestante > 0
             BEGIN
-                DECLARE @IdDetalleExpensa INT = NULL;
-                DECLARE @MontoAdeudado DECIMAL(9,2) = 0;
-                DECLARE @FechaVencimiento1 DATE;
-                DECLARE @IdTipoIngreso INT;
+                DECLARE @IdDetalleDestino INT = NULL;
+                DECLARE @SaldoPendiente DECIMAL(12,2) = 0;
+                DECLARE @TipoIngreso INT = 1; 
 
-                SELECT TOP 1
-                    @IdDetalleExpensa = DE.Id_Detalle_Expensa,
-                    @MontoAdeudado = (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes),
-                    @FechaVencimiento1 = LM.Fecha_Vencimiento1
-                FROM liquidacion.Detalle_Expensa_UF AS DE
-                JOIN liquidacion.Liquidacion_Mensual AS LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
-                WHERE DE.Id_Consorcio = @IdConsorcio
-                  AND DE.NroUf = @NroUF
+                -- Buscar deuda más antigua
+                SELECT TOP 1 
+                    @IdDetalleDestino = DE.Id_Detalle_Expensa,
+                    @SaldoPendiente = CAST((DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) AS DECIMAL(12,2))
+                FROM liquidacion.Detalle_Expensa_UF DE
+                JOIN liquidacion.Liquidacion_Mensual LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
+                WHERE DE.Id_Consorcio = @IdConsorcio AND DE.NroUf = @NroUF
                   AND (DE.Total_A_Pagar - DE.Pagos_Recibidos_Mes) > 0.01
                 ORDER BY LM.Periodo ASC;
 
-                IF @IdDetalleExpensa IS NULL
+                -- Si no hay deuda, imputar a cuenta en la última expensa
+                IF @IdDetalleDestino IS NULL
                 BEGIN
-                    --PRINT 'No hay más deuda para la UF: ' + @NroUF + '. (Sobrante: ' + CAST(@MontoRestantePago AS VARCHAR) + ')';
-                    BREAK;
+                    SELECT TOP 1 
+                        @IdDetalleDestino = DE.Id_Detalle_Expensa, 
+                        @SaldoPendiente = @MontoRestante 
+                    FROM liquidacion.Detalle_Expensa_UF DE 
+                    JOIN liquidacion.Liquidacion_Mensual LM ON DE.Id_Expensa = LM.Id_Liquidacion_Mensual
+                    WHERE DE.Id_Consorcio = @IdConsorcio AND DE.NroUf = @NroUF 
+                    ORDER BY LM.Periodo DESC;
+                    
+                    SET @TipoIngreso = 3; 
                 END
 
-                IF @FechaPago <= @FechaVencimiento1
-                    SET @IdTipoIngreso = 1; -- EN TERMINO
-                ELSE
-                    SET @IdTipoIngreso = 2; -- ADEUDADO
+                IF @IdDetalleDestino IS NULL BREAK;
 
-                DECLARE @MontoAAplicar DECIMAL(9,2);
+                -- Calcular monto a aplicar
+                DECLARE @Aplicar DECIMAL(12,2) = CASE WHEN @MontoRestante >= @SaldoPendiente THEN @SaldoPendiente ELSE @MontoRestante END;
 
-                IF @MontoRestantePago >= @MontoAdeudado
-                    SET @MontoAAplicar = @MontoAdeudado;
-                ELSE
-                    SET @MontoAAplicar = @MontoRestantePago;
+                -- Actualizar y registrar detalle
+                UPDATE liquidacion.Detalle_Expensa_UF 
+                SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @Aplicar 
+                WHERE Id_Detalle_Expensa = @IdDetalleDestino;
 
-                BEGIN TRY
-                    UPDATE liquidacion.Detalle_Expensa_UF
-                    SET Pagos_Recibidos_Mes = Pagos_Recibidos_Mes + @MontoAAplicar
-                    WHERE Id_Detalle_Expensa = @IdDetalleExpensa;
-                    
-                    INSERT INTO pagos.Detalle_Pago 
-                        (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado)
-                    VALUES 
-                        (@IdPago, @IdDetalleExpensa, @IdTipoIngreso, @MontoAAplicar);
+                INSERT INTO pagos.Detalle_Pago (Id_Pago, Id_Detalle_Expensa, Id_Tipo_Ingreso, Importe_Usado)
+                VALUES (@IdPago, @IdDetalleDestino, @TipoIngreso, @Aplicar);
 
-                    SET @MontoRestantePago = @MontoRestantePago - @MontoAAplicar;
-                    --PRINT '   -> Aplicados ' + CAST(@MontoAAplicar AS VARCHAR) + ' a Expensa ID: ' + CAST(@IdDetalleExpensa AS VARCHAR) + '. Restante: ' + CAST(@MontoRestantePago AS VARCHAR);
+                SET @MontoRestante = @MontoRestante - @Aplicar;
+            END
 
-                END TRY
-                BEGIN CATCH
-                    PRINT 'ERROR: Falla al aplicar pago ID ' + CAST(@IdPago AS VARCHAR) + ' a expensa ID ' + CAST(@IdDetalleExpensa AS VARCHAR);
-                    PRINT ERROR_MESSAGE();
-                    BREAK; 
-                END CATCH
-            END 
-            UPDATE pagos.Pago
-            SET Procesado = 1
-            WHERE Id_Pago = @IdPago;
-            SET @i = @i + 1;
-        END 
+            -- Finalizar pago y recalcular saldos futuros
+            UPDATE pagos.Pago SET Procesado = 1 WHERE Id_Pago = @IdPago;
+            
+			EXEC dbo.sp_Recalcular_Saldos_UF @Id_Consorcio = @IdConsorcio, @NroUF = @NroUF;
 
-        DROP TABLE #PagosAProcesar;
-        --PRINT 'Proceso de imputación de pagos finalizado.';
+            DELETE FROM #PagosPendientes WHERE Id_Pago = @IdPago;
+        END
 
+        DROP TABLE #PagosPendientes;
     END TRY
-    BEGIN CATCH  
-        PRINT 'ERROR: Falla en el procesamiento de pagos.';
-        PRINT ERROR_MESSAGE();
+    BEGIN CATCH
+        PRINT 'ERROR en sp_Procesar_Pagos: ' + ERROR_MESSAGE();
         THROW;
     END CATCH
-
-    SET NOCOUNT OFF;
 END
+GO
+
+USE COM5600_G04;
 GO

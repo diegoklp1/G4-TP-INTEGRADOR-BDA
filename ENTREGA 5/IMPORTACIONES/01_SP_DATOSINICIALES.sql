@@ -56,8 +56,6 @@ INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (1,'EN TERMIN
 INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (2,'ADEUDADO');
 INSERT INTO [pagos].[Tipo_ingreso] (id_Tipo_Ingreso,Nombre) VALUES (3,'ADELANTADO');
 
-
-PRINT 'Insertando Tipos de Pago Extraordinario...';
 INSERT INTO gastos.Tipo_Pago_Extraordinario (Id_tipo_pago, Nombre) 
 VALUES 
     (1, 'Reparaciones'),
@@ -81,10 +79,10 @@ INSERT INTO [gastos].[Tipo_Servicio] (Nombre) VALUES
 GO
 
 
-
+/*
 
 use COM5600_G04
--- Habilitar la visualización de opciones avanzadas
+-- Habilitar la visualizaciÃ³n de opciones avanzadas
 EXEC sp_configure 'show advanced options', 1;
 RECONFIGURE;
 GO
@@ -95,4 +93,3 @@ RECONFIGURE;
 GO
 
 PRINT 'Ole Automation Procedures ha sido habilitado.';
-PRINT 'Vuelve a ejecutar tu script 05.';

@@ -1,5 +1,5 @@
 -- =============================================================
--- SCRIPT: 05_SP_INVOCACIONES_DATOS_EXPENSAS.sql
+-- SCRIPT: 06_SP_INVOCACIONES_DATOS_EXPENSAS.sql
 -- PROPOSITO: SCRIPT DE EJECUCION DE DATOS EXPENSAS
 -- 
 -- Fecha de entrega:	14/11/2025
@@ -11,207 +11,126 @@
 -- - Varela Daniel , DNI: 40388978
 -- - Llanos Diego  , DNI: 45748387
 -- =============================================================
-
-
--- 1. LIMPIEZA (Solo para pruebas)
---PRINT 'Limpiando tablas...';
---DELETE FROM pagos.Detalle_Pago;
---DELETE FROM pagos.Pago;
---DELETE FROM liquidacion.Detalle_Expensa_UF;
---DELETE FROM liquidacion.Liquidacion_Mensual;
-
 USE COM5600_G04;
 GO
-----------------------------------------------------------------------
--- GASTO EXTRAORDINARIO - Abril 2025
-----------------------------------------------------------------------
-GO
+SET NOCOUNT ON;
+
+-- Gasto de prueba
 INSERT INTO gastos.Gasto_Extraordinario 
-	(Id_Consorcio, Id_tipo_pago, detalle_trabajo, Nro_Cuotas_Actual, Total_Cuotas, Importe, Fecha)
+    (Id_Consorcio, Id_tipo_pago, detalle_trabajo, Nro_Cuotas_Actual, Total_Cuotas, Importe, Fecha)
 VALUES 
-	(1, 1, 'Reparacion Porton Cochera', 1, 1, 45000.00, '2025-04-10');
-GO
-----------------------------------------------------------------------
--- MES 1 - Abril 2025
-----------------------------------------------------------------------
-DECLARE @IdLiquidacionMes1 INT;
+    (1, 1, 'Reparacion Porton Cochera', 1, 2, 150000.00, '2025-04-10');
 
-SELECT @IdLiquidacionMes1 = Id_Liquidacion_Mensual
-FROM liquidacion.Liquidacion_Mensual
-WHERE Id_Consorcio = 1
-  AND CAST(Periodo AS DATE) = '2025-04-01';
+-- Declaramos variables globales para reutilizar en todo el script
+DECLARE @IdLiq INT;
+DECLARE @EsHabilResultado INT;
+DECLARE @FechaHoy DATE = CAST(GETDATE() AS DATE); -- Usamos fecha real para validar API
 
-IF @IdLiquidacionMes1 IS NULL
+PRINT '';
+PRINT '=== MES 1: ABRIL 2025 ===';
+
+SELECT @IdLiq = Id_Liquidacion_Mensual FROM liquidacion.Liquidacion_Mensual WHERE Id_Consorcio = 1 AND CAST(Periodo AS DATE) = '2025-04-01';
+
+IF @IdLiq IS NULL
 BEGIN
-    -- Uso de la API
-    -- 1. Declarar una variable para capturar el valor de retorno.
-    DECLARE @EsNoHabil INT;
-    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
+    -- Consultamos API
+    EXEC dbo.EsDiaNoHabil @fecha = @FechaHoy, @EsNoHabil = @EsHabilResultado OUTPUT;
 
-    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
-    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
-
-	PRINT 'Generando liquidación Abril 2025';
-
-    IF @EsNoHabil = 0
+    IF @EsHabilResultado = 1
     BEGIN
-		EXEC sp_Generar_Liquidacion_Mensual
-				@Id_Consorcio = 1, -- Se reemplaza variable por ID 1
-				@Anio = 2025,
-				@Mes = 4,
-				@Id_Liquidacion_Generada = @IdLiquidacionMes1 OUTPUT;
-
-		EXEC sp_Generar_Detalle_Expensas 
-				@Id_Liquidacion_Mensual = @IdLiquidacionMes1;
+        PRINT 'Dia Habil confirmado. Generando Abril...';
+        EXEC sp_Generar_Liquidacion_Mensual @Id_Consorcio = 1, @Anio = 2025, @Mes = 4, @Id_Liquidacion_Generada = @IdLiq OUTPUT;
+        EXEC sp_Generar_Detalle_Expensas @Id_Liquidacion_Mensual = @IdLiq;
     END
-
-END
-ELSE
-BEGIN
-	PRINT 'La liquidación Abril 2025 ya existe. No se genera nuevamente.';
-END
-GO
-
-
-----------------------------------------------------------------------
--- PROCESAR PAGOS (Tanda 1)
-----------------------------------------------------------------------
-DECLARE @IdLiquidacionMes1 INT =
-(
-	SELECT Id_Liquidacion_Mensual
-	FROM liquidacion.Liquidacion_Mensual
-	WHERE Id_Consorcio = 1
-	  AND CAST(Periodo AS DATE) = '2025-04-01'
-);
-
-IF @IdLiquidacionMes1 IS NULL
-	RAISERROR('No se encontro la liquidacion del Mes 1.', 16, 1);
-ELSE
-BEGIN
-	EXEC sp_Procesar_Pagos;
-
-	SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar
-	FROM liquidacion.Detalle_Expensa_UF
-	WHERE Id_Expensa = @IdLiquidacionMes1;
-END
-GO
-
-
-----------------------------------------------------------------------
--- Tanda 2 - Nuevo Pago
-----------------------------------------------------------------------
-DECLARE @IdLiquidacionMes1 INT =
-(
-	SELECT Id_Liquidacion_Mensual
-	FROM liquidacion.Liquidacion_Mensual
-	WHERE Id_Consorcio = 1
-	  AND CAST(Periodo AS DATE) = '2025-04-01'
-);
-
-IF @IdLiquidacionMes1 IS NULL
-	RAISERROR('No se encontro la liquidacion del Mes 1.', 16, 1);
-ELSE
-BEGIN
-	IF NOT EXISTS (SELECT 1 FROM pagos.Pago WHERE Id_Pago = 99999)
-	BEGIN
-		INSERT INTO pagos.Pago (Id_Pago, Id_Forma_De_Pago, Fecha, Cuenta_Origen, Importe, Es_Pago_Asociado, Procesado)
-		VALUES (99991, 1, '2025-04-10', '1112192065530490000000', 500.00, 1, 0);
-		
-		-- Pago que no va a tener un cbu asociado
-		INSERT INTO pagos.Pago (Id_Pago, Id_Forma_De_Pago, Fecha, Cuenta_Origen, Importe, Es_Pago_Asociado, Procesado)
-		VALUES (99990, 1, '2025-04-10', '1112192065530490000999', 500.00, 1, 0);
-	END
-	ELSE
-
-	EXEC sp_Procesar_Pagos;
-
-	/* -- Se agrega esquema 'liquidacion'
-	SELECT Id_Detalle_Expensa, NroUf, Pagos_Recibidos_Mes, Total_A_Pagar
-	FROM liquidacion.Detalle_Expensa_UF
-	WHERE Id_Expensa = @IdLiquidacionMes1
-	  AND NroUf = '10';
-	*/
-END
-GO
-
-
-----------------------------------------------------------------------
--- MES 2 - Mayo 2025
-----------------------------------------------------------------------
-DECLARE @IdLiquidacionMes2 INT;
-
-SELECT @IdLiquidacionMes2 = Id_Liquidacion_Mensual
-FROM liquidacion.Liquidacion_Mensual
-WHERE Id_Consorcio = 1
-  AND CAST(Periodo AS DATE) = '2025-05-01';
-
-IF @IdLiquidacionMes2 IS NULL
-BEGIN
-	PRINT 'Generando liquidación Mayo 2025';
-	 DECLARE @EsNoHabil INT;
-    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
-
-    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
-    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
-    IF @EsNoHabil = 0
+    ELSE
     BEGIN
-		EXEC sp_Generar_Liquidacion_Mensual
-				@Id_Consorcio = 1,
-				@Anio = 2025,
-				@Mes = 5,
-				@Id_Liquidacion_Generada = @IdLiquidacionMes2 OUTPUT;
-
-		EXEC sp_Generar_Detalle_Expensas 
-				@Id_Liquidacion_Mensual = @IdLiquidacionMes2;
+        PRINT 'AVISO: Hoy NO es habil. No se genera Abril.';
     END
 END
 ELSE
 BEGIN
-	PRINT 'La liquidación Mayo 2025 ya existe.';
+    PRINT 'Abril ya existe.';
 END
 
-SELECT *
-FROM liquidacion.Detalle_Expensa_UF
-WHERE Id_Expensa = @IdLiquidacionMes2;
-GO
+-- Procesar pagos si existe el mes
+IF @IdLiq IS NOT NULL EXEC sp_Procesar_Pagos @FechaCorte = '2025-04-30';
 
 
-----------------------------------------------------------------------
--- MES 3 - Junio 2025
-----------------------------------------------------------------------
-DECLARE @IdLiquidacionMes3 INT;
+PRINT '';
+PRINT '=== MES 2: MAYO 2025 ===';
 
-SELECT @IdLiquidacionMes3 = Id_Liquidacion_Mensual
-FROM liquidacion.Liquidacion_Mensual
-WHERE Id_Consorcio = 1
-  AND CAST(Periodo AS DATE) = '2025-06-01';
+SET @IdLiq = NULL; -- Limpiamos variable
+SELECT @IdLiq = Id_Liquidacion_Mensual FROM liquidacion.Liquidacion_Mensual WHERE Id_Consorcio = 1 AND CAST(Periodo AS DATE) = '2025-05-01';
 
-IF @IdLiquidacionMes3 IS NULL
+IF @IdLiq IS NULL
 BEGIN
-	PRINT 'Generando liquidación Junio 2025';
-	DECLARE @EsNoHabil INT;
-    DECLARE @Fecha DATE = CONVERT(DATE, GETDATE());
+    EXEC dbo.EsDiaNoHabil @fecha = @FechaHoy, @EsNoHabil = @EsHabilResultado OUTPUT;
 
-    -- 2. Ejecutar el Stored Procedure y asignar su valor de retorno a la variable.
-    EXEC @EsNoHabil = dbo.EsDiaNoHabil @Fecha;
-    IF @EsNoHabil = 0
+    IF @EsHabilResultado = 1
     BEGIN
-		EXEC sp_Generar_Liquidacion_Mensual
-				@Id_Consorcio = 1,
-				@Anio = 2025,
-				@Mes = 6,
-				@Id_Liquidacion_Generada = @IdLiquidacionMes3 OUTPUT;
-
-		EXEC sp_Generar_Detalle_Expensas 
-				@Id_Liquidacion_Mensual = @IdLiquidacionMes3;
+        PRINT 'Dia Habil confirmado. Generando Mayo...';
+        EXEC sp_Generar_Liquidacion_Mensual @Id_Consorcio = 1, @Anio = 2025, @Mes = 5, @Id_Liquidacion_Generada = @IdLiq OUTPUT;
+        EXEC sp_Generar_Detalle_Expensas @Id_Liquidacion_Mensual = @IdLiq;
     END
+    ELSE PRINT 'AVISO: Hoy NO es habil. No se genera Mayo.';
 END
-ELSE
-BEGIN
-	PRINT 'La liquidación Junio 2025 ya existe.';
-END
+ELSE PRINT 'Mayo ya existe.';
 
-SELECT *
-FROM liquidacion.Detalle_Expensa_UF
-WHERE Id_Expensa = @IdLiquidacionMes3;
+IF @IdLiq IS NOT NULL EXEC sp_Procesar_Pagos @FechaCorte = '2025-05-31';
+
+
+PRINT '';
+PRINT '=== MES 3: JUNIO 2025 ===';
+
+SET @IdLiq = NULL;
+SELECT @IdLiq = Id_Liquidacion_Mensual FROM liquidacion.Liquidacion_Mensual WHERE Id_Consorcio = 1 AND CAST(Periodo AS DATE) = '2025-06-01';
+
+IF @IdLiq IS NULL
+BEGIN
+    EXEC dbo.EsDiaNoHabil @fecha = @FechaHoy, @EsNoHabil = @EsHabilResultado OUTPUT;
+
+    IF @EsHabilResultado = 1
+    BEGIN
+        PRINT 'Dia Habil confirmado. Generando Junio...';
+        EXEC sp_Generar_Liquidacion_Mensual @Id_Consorcio = 1, @Anio = 2025, @Mes = 6, @Id_Liquidacion_Generada = @IdLiq OUTPUT;
+        EXEC sp_Generar_Detalle_Expensas @Id_Liquidacion_Mensual = @IdLiq;
+    END
+    ELSE PRINT 'AVISO: Hoy NO es habil. No se genera Junio.';
+END
+ELSE PRINT 'Junio ya existe.';
+
+IF @IdLiq IS NOT NULL EXEC sp_Procesar_Pagos @FechaCorte = '2025-06-30';
+
+PRINT '=== PROCESO FINALIZADO ===';
 GO
+
+/*
+use COM5600_G04
+SELECT * FROM liquidacion.Liquidacion_Mensual 
+
+SELECT * FROM liquidacion.Detalle_Expensa_UF 
+where NroUF = 1
+order by CAST(NroUF AS INT),Id_Expensa 
+
+select *FROM unidades.Unidad_Persona ORDER BY cast(NroUF as int)
+
+INSERT INTO pagos.Pago (Id_Pago, Id_Forma_De_Pago,Fecha,Cuenta_Origen,Importe,Es_Pago_Asociado, Procesado)
+VALUES
+('11804',1,'2025-04-12', 3622546757575540000000, 70232.63, 1, 0)
+
+INSERT INTO pagos.Pago (Id_Pago, Id_Forma_De_Pago,Fecha,Cuenta_Origen,Importe,Es_Pago_Asociado, Procesado)
+VALUES
+('11806',1,'2025-04-12', 8899158762922760000000, 70232.63, 1, 0)
+c
+
+*/
+/*
+--LIMPIEZA
+DELETE FROM pagos.Detalle_Pago;
+DELETE FROM liquidacion.Detalle_Expensa_UF;
+DELETE FROM liquidacion.Liquidacion_Mensual;
+DELETE FROM gastos.Gasto_Extraordinario;
+DBCC CHECKIDENT ('liquidacion.Liquidacion_Mensual', RESEED, 0);
+DBCC CHECKIDENT ('liquidacion.Detalle_Expensa_UF', RESEED, 0);
+UPDATE pagos.Pago SET Procesado = 0 WHERE Fecha BETWEEN '2025-04-01' AND '2025-06-30';
+*/
