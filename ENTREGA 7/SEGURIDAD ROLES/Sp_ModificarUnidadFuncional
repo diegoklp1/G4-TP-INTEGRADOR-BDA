@@ -34,6 +34,9 @@ BEGIN
         -- Validaciones
         IF @Piso = '' OR @Departamento = ''
             RAISERROR('El Piso y el Departamento no pueden estar vacíos.', 16, 1);
+        IF EXISTS (SELECT 1 FROM [unidades].[Unidad_Funcional] 
+		WHERE Id_Consorcio = @Id_Consorcio AND Piso = @Piso AND Departamento = @Departamento AND NroUF <> @NroUF)
+            RAISERROR ('Ya existen una unidad funcional con el mismo depto en el mismo piso ingresado.', 16, 1);
         IF @Coeficiente <= 0
             RAISERROR('El Coeficiente debe ser mayor a 0.', 16, 1);
         IF @M2_UF <= 0
