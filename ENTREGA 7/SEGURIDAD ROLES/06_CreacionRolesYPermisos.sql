@@ -57,6 +57,18 @@ BEGIN
 END
 GO
 
+
+
+
+use master
+go
+
+GRANT ADMINISTER BULK OPERATIONS TO login_AdminBancario; 
+go
+
+use COM5600_G04
+go
+	
 PRINT '--- 2. Asignamos permisos ---'
 GO
 
@@ -168,5 +180,6 @@ GRANT EXECUTE ON dbo.sp_ReporteIntervaloPagosOrdinarios TO Sistemas;				-- Repor
 -- Permiso de lectura (SELECT)
 GRANT SELECT ON SCHEMA::dbo TO Sistemas;
 -- =========================================================
+
 
 
